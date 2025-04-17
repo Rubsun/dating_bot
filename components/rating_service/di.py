@@ -3,22 +3,22 @@ from collections.abc import AsyncGenerator
 
 from dishka import Provider, Scope, make_async_container, provide
 from redis.asyncio import Redis
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import (AsyncEngine, AsyncSession,
+                                    async_sessionmaker, create_async_engine)
 
-from components.bot_gateway.config import Config, load_config
-from components.bot_gateway.repositories.notification_repository import NotificationRepository
-from components.bot_gateway.services.notification_service import (
-    NotificationAnalyzer,
-    NotificationGateway,
-    NotificationService,
-)
+from components.api_gateway.config import Config, load_config
+from components.api_gateway.repositories.notification_repository import \
+    NotificationRepository
+from components.api_gateway.services.notification_service import (
+    NotificationAnalyzer, NotificationGateway, NotificationService)
 
 
 def config_provider() -> Provider:
     provider = Provider()
 
     cfg_path = os.getenv('DATING_BOT_CONFIG_PATH', './configs/app.toml')
-    provider.provide(lambda: load_config(cfg_path), scope=Scope.APP, provides=Config)
+    provider.provide(lambda: load_config(cfg_path),
+                     scope=Scope.APP, provides=Config)
     return provider
 
 
