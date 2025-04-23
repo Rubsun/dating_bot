@@ -16,7 +16,7 @@ async def start_cmd(message: types.Message, state: FSMContext):
     first_name = message.from_user.first_name
 
     async with httpx.Client() as client:
-        response = await client.get(f"http://localhost:8001/api/v1/profiles/telegram/{user_id}")  # TODO Получение профиля юзера
+        response = await client.get(f"http://localhost:8001/api/v1/profiles/{user_id}")
 
         if response.status_code == 404:
             await state.update_data(
@@ -34,7 +34,7 @@ async def start_cmd(message: types.Message, state: FSMContext):
 
 
         elif response.status_code == 200:
-            await message.answer("Ваша анкета активна. Зайдите в веб приложение")  # TODO отправить ссылку с апкой
+            await message.answer("Ваша анкета активна. Зайдите в веб приложение")
 
 
 @router.message(ProfileCreationStates.waiting_for_first_name)
