@@ -2,13 +2,13 @@ import os
 from collections.abc import AsyncGenerator
 
 from dishka import Provider, Scope, make_async_container, provide
-from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import (AsyncEngine, AsyncSession,
                                     async_sessionmaker, create_async_engine)
 
 from components.profile_service.config import Config, load_config
 from components.profile_service.models import Base, Profile  # noqa
 from components.profile_service.repositories import ProfileRepository
+from components.profile_service.minio_utils import MinIOClient
 
 
 def config_provider() -> Provider:
@@ -44,6 +44,15 @@ class ProfileServiceProvider(Provider):
     async def get_repository(self, session: AsyncSession) -> ProfileRepository:
         return ProfileRepository(db=session)
 
+
+    @provide(scope=Scope.APP)
+    async def get_s3_client(self, cfg: Config) -> MinIOClient:
+        return MinIOClient(
+            bucket_name=cfg.s3.profile_photos_bucket,
+            endpoint_url=cfg.s3.endpoint_url,
+            access_key=cfg.s3.access_key,
+            secret_key=cfg.s3.secret_key,
+        )
 
 def setup_di():
     return make_async_container(

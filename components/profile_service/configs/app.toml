@@ -8,3 +8,9 @@ port = 5432
 user = "postgres"
 password = "postgres"
 name = "postgres"
+
+[s3]
+endpoint_url = "http://127.0.0.1:9000"
+access_key = "minioadmin"
+secret_key = "minioadmin"
+profile_photos_bucket = "profile-photos"

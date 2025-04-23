@@ -18,8 +18,17 @@ class DatabaseConfig:
 
 
 @dataclass
+class S3Config:
+    endpoint_url: str
+    access_key: str
+    secret_key: str
+    profile_photos_bucket: str
+
+
+@dataclass
 class Config:
     db: DatabaseConfig
+    s3: S3Config
 
 
 def load_config(config_path: str) -> Config:
@@ -27,6 +36,7 @@ def load_config(config_path: str) -> Config:
         data = toml.load(config_file)
     return Config(
         db=DatabaseConfig(**data["db"]),
+        s3=S3Config(**data["s3"]),
     )
 
 

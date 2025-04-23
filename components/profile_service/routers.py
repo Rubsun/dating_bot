@@ -1,12 +1,13 @@
 from datetime import datetime
 
 from fastapi import HTTPException, APIRouter
-from pydantic import BaseModel, Field, constr
+from pydantic import BaseModel, Field
 from typing import Optional
 
 from dishka import FromDishka
 from dishka.integrations.fastapi import DishkaRoute
 
+from components.profile_service.minio_utils import MinIOClient
 from components.profile_service.repositories import ProfileRepository
 
 router = APIRouter(route_class=DishkaRoute)
@@ -28,6 +29,7 @@ class ProfileRequest(BaseModel):
 async def create_profile(
         profile_request: ProfileRequest,  # Accept data in the request body
         profile_repo: FromDishka[ProfileRepository],
+        s3_client: FromDishka[MinIOClient],
 ):
     # Validate gender (Redundant because it's validated in Pydantic, but included as an example)
     if profile_request.gender not in ["Male", "Female", "Other"]:
@@ -37,9 +39,8 @@ async def create_profile(
     photo = profile_request.photo  # Assuming the client provides the path/filename
 
     # Save the photo to a specific folder (mocked here)
-    photo_path = f"uploads/{profile_request.first_name}_{profile_request.last_name}_{datetime.now()}"
-    with open(photo_path, "wb") as buffer:
-        buffer.write(photo)
+    photo_file_name = f"{profile_request.first_name}_{profile_request.last_name}"
+    photo_url = s3_client.upload_file(photo, photo_file_name)
 
     # Use the repository to save the profile in the database
     new_profile = await profile_repo.create_profile(
@@ -49,7 +50,7 @@ async def create_profile(
         age=profile_request.age,
         gender=profile_request.gender,
         city=profile_request.city,
-        photo_path=photo_path,
+        photo_path=photo_url,
     )
 
     return {"message": "Profile created successfully", "profile": {
@@ -99,5 +100,4 @@ async def delete_profile(profile_id: int, profile_repo: FromDishka[ProfileReposi
         raise HTTPException(
             status_code=404, detail=f"Profile with ID {profile_id} not found"
         )
-
     return {"message": f"Profile with ID {profile_id} was successfully deleted"}
