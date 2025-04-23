@@ -9,6 +9,7 @@ class ProfileRepository:
 
     async def create_profile(
             self,
+            telegram_id: int,
             first_name: str,
             last_name: str,
             bio: str,
@@ -19,6 +20,7 @@ class ProfileRepository:
     ) -> Profile:
         # Create a new Profile object
         new_profile = Profile(
+            id=telegram_id,
             first_name=first_name,
             last_name=last_name,
             bio=bio,

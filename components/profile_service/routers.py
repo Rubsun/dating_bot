@@ -14,6 +14,7 @@ router = APIRouter(route_class=DishkaRoute)
 
 
 class ProfileRequest(BaseModel):
+    telegram_id: int = Field(..., example=12345678)
     first_name: str = Field(..., max_length=100, example="John")
     last_name: str = Field(..., max_length=100, example="Doe")
     bio: Optional[str] = Field(None, max_length=300, example="Software Developer")
@@ -44,6 +45,7 @@ async def create_profile(
 
     # Use the repository to save the profile in the database
     new_profile = await profile_repo.create_profile(
+        telegram_id=profile_request.telegram_id,
         first_name=profile_request.first_name,
         last_name=profile_request.last_name,
         bio=profile_request.bio,
