@@ -15,8 +15,8 @@ async def start_cmd(message: types.Message, state: FSMContext):
     user_id = message.from_user.id
     first_name = message.from_user.first_name
 
-    async with httpx.Client() as client:
-        response = await client.get(f"http://localhost:8001/api/v1/profiles/{user_id}")
+    async with httpx.AsyncClient() as client:
+        response = await client.get(f"http://localhost:8000/api/v1/profiles/{user_id}")  # TODO Получение профиля юзера
 
         if response.status_code == 404:
             await state.update_data(
@@ -34,7 +34,7 @@ async def start_cmd(message: types.Message, state: FSMContext):
 
 
         elif response.status_code == 200:
-            await message.answer("Ваша анкета активна. Зайдите в веб приложение")
+            await message.answer("Ваша анкета активна. Зайдите в веб приложение")  # TODO отправить ссылку с апкой
 
 
 @router.message(ProfileCreationStates.waiting_for_first_name)
@@ -142,11 +142,11 @@ async def waiting_for_photo(message: types.Message, state: FSMContext):
 
     async with httpx.AsyncClient() as client:
         response = await client.post(
-            "http://localhost:8001/api/v1/profiles/",
+            "http://localhost:8000/api/v1/profiles/",
             data=form_data,
             files=files
         )
-        if response.status_code == 201:
+        if response.status_code == 200:
             await message.answer("✅ Ваша анкета успешно создана!")
         else:
             await message.answer("❌ Произошла ошибка при создании анкеты.")

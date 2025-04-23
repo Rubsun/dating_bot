@@ -10,7 +10,7 @@ from components.profile_service.schemas import ProfileRequest
 router = APIRouter(route_class=DishkaRoute)
 
 
-@router.post("/api/v1/profiles")
+@router.post("/profiles")
 async def create_profile(
         profile_request: ProfileRequest,  # Accept data in the request body
         profile_repo: FromDishka[ProfileRepository],
@@ -51,7 +51,7 @@ async def create_profile(
     }}
 
 
-@router.get("/api/v1/profiles/{profile_id}")
+@router.get("/profiles/{profile_id}")
 async def get_profile(profile_id: int, profile_repo: FromDishka[ProfileRepository]):
     """
     Endpoint to fetch a profile by its ID.
@@ -75,7 +75,7 @@ async def get_profile(profile_id: int, profile_repo: FromDishka[ProfileRepositor
     }
 
 
-@router.delete("/api/v1/profiles/{profile_id}")
+@router.delete("/profiles/{profile_id}")
 async def delete_profile(profile_id: int, profile_repo: FromDishka[ProfileRepository]):
     """
     Endpoint to delete a profile by its ID.

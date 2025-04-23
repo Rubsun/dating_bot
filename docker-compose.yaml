@@ -17,7 +17,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: "dating_bot-raitng_service"
+    container_name: "dating_bot-rating_service"
     environment:
       RATING_SERVICE_CONFIG_PATH: "./components/rating_service/configs/app.docker.toml"
     command: uv run uvicorn components.rating_service.main:app --port 8001 --host 0.0.0.0

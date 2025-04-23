@@ -4,7 +4,7 @@ from dishka import FromDishka
 from dishka.integrations.fastapi import DishkaRoute
 from components.rating_service.repositories import ProfileRatingRepository
 
-from components.rating_service.schemas import RatingCreate, RatingResponse, RatingBase
+from components.rating_service.schemas import RatingCreate, RatingResponse, RatingBase, ProfileInfo
 
 
 router = APIRouter(route_class=DishkaRoute)
@@ -12,10 +12,10 @@ router = APIRouter(route_class=DishkaRoute)
 
 @router.post("/ratings", response_model=RatingResponse)
 async def create_rating(
-        rating_data: RatingCreate,
+        rating_data: ProfileInfo,
         rating_repo: FromDishka[ProfileRatingRepository],
 ):
-    profile = await rating_repo.get_rating_by_profile_id(rating_data.profile_telegram_id)
+    profile = await rating_repo.get_rating_by_profile_id(rating_data.profile_id)
     if profile:
         raise HTTPException(status_code=404, detail="Profile is already registered")
 

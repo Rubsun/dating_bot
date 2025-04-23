@@ -5,7 +5,7 @@ from aiogram.fsm.storage.memory import MemoryStorage
 
 from components.api_gateway.controllers.bot.handlers import router as handler_router
 
-BOT_TOKEN = ""
+BOT_TOKEN = "7595911850:AAHs-6bjlqCrO_eqLC_eVu1L4HEW-2nv4M0"
 
 
 async def start_polling():
