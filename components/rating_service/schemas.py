@@ -17,7 +17,7 @@ class ProfileInfo(BaseModel):
 
 
 class RatingBase(BaseModel):
-    rating_score: float = Field(..., ge=0, le=100, example=85.5, description="Rating value between 0 and 100")
+    rating_score: float = Field(..., ge=0, le=10000, example=85.5, description="Rating value between 0 and 100")
 
 
 class RatingCreate(RatingBase):
@@ -30,3 +30,8 @@ class RatingResponse(RatingBase):
 
     class Config:
         from_attributes = True
+
+
+class LikeDislikePayload(BaseModel):
+    rater_user_id: int
+    rated_user_id: int
