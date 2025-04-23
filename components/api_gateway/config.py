@@ -15,8 +15,14 @@ class GrpcConfig:
 
 
 @dataclass
+class BotConfig:
+    bot_token: str
+
+
+@dataclass
 class Config:
     grpc: GrpcConfig
+    bot: BotConfig
 
 
 def load_config(config_path: str) -> Config:
@@ -24,4 +30,6 @@ def load_config(config_path: str) -> Config:
         data = toml.load(config_file)
     return Config(
         grpc=GrpcConfig(**data["grpc"]),
+        bot=BotConfig(**data["bot"]),
+
     )
