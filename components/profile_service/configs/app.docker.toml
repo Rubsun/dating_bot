@@ -3,14 +3,14 @@ host = "localhost"
 port = 50051
 
 [db]
-host = "localhost"
+host = "db"
 port = 5432
 user = "postgres"
 password = "postgres"
 name = "postgres"
 
 [s3]
-endpoint_url = "http://minio:9000"
+endpoint_url = "http://s3:9000"
 access_key = "minioadmin"
 secret_key = "minioadmin"
 profile_photos_bucket = "profile-photos"

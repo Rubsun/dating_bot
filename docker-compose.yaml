@@ -1,30 +1,45 @@
 services:
-  notification_service:
+  profile_service:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: "dating_bot-notification_service"
+    container_name: "dating_bot-profile_service"
     environment:
-      DATING_BOT_CONFIG_PATH: "./configs/app.docker.toml"
+      PROFILE_SERVICE_CONFIG_PATH: "./components/profile_service/configs/app.docker.toml"
+    command: uv run uvicorn components.profile_service.main:app --port 8000 --host 0.0.0.0
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     depends_on:
       db:
         condition: service_healthy
-      redis:
-        condition: service_started
 
-  db_migrations:
+  rating_service:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: "dating_bot-db_migrations"
+    container_name: "dating_bot-raitng_service"
     environment:
-      DATING_BOT_CONFIG_PATH: "./configs/app.docker.toml"
-    command: "uv run alembic upgrade head"
+      RATING_SERVICE_CONFIG_PATH: "./components/rating_service/configs/app.docker.toml"
+    command: uv run uvicorn components.rating_service.main:app --port 8001 --host 0.0.0.0
+    ports:
+      - "127.0.0.1:8001:8001"
     depends_on:
       db:
         condition: service_healthy
+#      redis:
+#        condition: service_started
+
+#  db_migrations:
+#    build:
+#      context: .
+#      dockerfile: Dockerfile
+#    container_name: "dating_bot-db_migrations"
+#    environment:
+#      DATING_BOT_CONFIG_PATH: "./configs/app.docker.toml"
+#    command: "uv run alembic upgrade head"
+#    depends_on:
+#      db:
+#        condition: service_healthy
 
   db:
     image: postgres:16.0-alpine3.18
@@ -42,16 +57,16 @@ services:
       retries: 5
     restart: always
 
-  redis:
-    image: redis:7.2.4-alpine
-    container_name: "dating_bot-redis"
-    ports:
-      - "127.0.0.1:6379:6379"
-    restart: "unless-stopped"
-    volumes:
-      - "./configs/:/usr/local/etc/redis"
-      - redis_data:/data
-    command: "redis-server /usr/local/etc/redis/redis.conf"
+#  redis:
+#    image: redis:7.2.4-alpine
+#    container_name: "dating_bot-redis"
+#    ports:
+#      - "127.0.0.1:6379:6379"
+#    restart: "unless-stopped"
+#    volumes:
+#      - "./configs/:/usr/local/etc/redis"
+#      - redis_data:/data
+#    command: "redis-server /usr/local/etc/redis/redis.conf"
 
   s3:
     image: minio/minio:latest
@@ -68,7 +83,7 @@ services:
       timeout: 20s
       retries: 3
     volumes:
-      - /opt/learn_anything/minio/data:/data
+      - ~/docker/minio/data:/data
     command: server /data --console-address ":9090"
 
 #  prometheus:
@@ -82,20 +97,20 @@ services:
 #      - '--config.file=/etc/prometheus/prometheus.yml'
 #    restart: unless-stopped
 
-  grafana:
-    image: grafana/grafana
-    container_name: "dating_bot-grafana"
-    ports:
-      - "3000:3000"
-    volumes:
-      - ./grafana/dashboard.yaml:/etc/grafana/provisioning/dashboards/main.yaml
-      - ./grafana/dashboards:/var/lib/grafana/dashboards
-      - ./grafana/provisioning/datasources/:/etc/grafana/provisioning/datasources/
-    environment:
-      - GF_SECURITY_ADMIN_USER=admin
-      - GF_SECURITY_ADMIN_PASSWORD=admin
-    restart: unless-stopped
+#  grafana:
+#    image: grafana/grafana
+#    container_name: "dating_bot-grafana"
+#    ports:
+#      - "3000:3000"
+#    volumes:
+#      - ./grafana/dashboard.yaml:/etc/grafana/provisioning/dashboards/main.yaml
+#      - ./grafana/dashboards:/var/lib/grafana/dashboards
+#      - ./grafana/provisioning/datasources/:/etc/grafana/provisioning/datasources/
+#    environment:
+#      - GF_SECURITY_ADMIN_USER=admin
+#      - GF_SECURITY_ADMIN_PASSWORD=admin
+#    restart: unless-stopped
 
 volumes:
   postgres_data:
-  redis_data:
+#  redis_data:

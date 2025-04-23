@@ -1,29 +1,13 @@
-from datetime import datetime
-
 from fastapi import HTTPException, APIRouter
-from pydantic import BaseModel, Field
-from typing import Optional
 
 from dishka import FromDishka
 from dishka.integrations.fastapi import DishkaRoute
 
 from components.profile_service.minio_utils import MinIOClient
 from components.profile_service.repositories import ProfileRepository
+from components.profile_service.schemas import ProfileRequest
 
 router = APIRouter(route_class=DishkaRoute)
-
-
-class ProfileRequest(BaseModel):
-    telegram_id: int = Field(..., example=12345678)
-    first_name: str = Field(..., max_length=100, example="John")
-    last_name: str = Field(..., max_length=100, example="Doe")
-    bio: Optional[str] = Field(None, max_length=300, example="Software Developer")
-    age: int = Field(..., ge=0, le=150, example=30)
-    gender: str = Field(
-        ..., example="Male", description="Allowed values: Male, Female, Other"
-    )
-    city: str = Field(..., max_length=100, example="New York")
-    photo: bytes = Field(..., description='photo content')
 
 
 @router.post("/api/v1/profiles")
