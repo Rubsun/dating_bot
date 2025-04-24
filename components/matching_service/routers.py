@@ -1,6 +1,6 @@
 import msgpack
 from aio_pika import ExchangeType
-from fastapi import HTTPException, APIRouter
+from fastapi import APIRouter
 
 from dishka import FromDishka
 from dishka.integrations.fastapi import DishkaRoute
@@ -20,9 +20,13 @@ async def create_like(
         matching_repo: FromDishka[LikeMatchRepository],
         cfg: FromDishka[Config],
 ):
-    await matching_repo.create_like(**payload.model_dump())
+    await matching_repo.create_like(
+        rated_user_id=payload.rated_user_id,
+        rater_user_id=payload.rater_user_id,
+        like_type=payload.like_type,
+   )
 
-    is_match = await matching_repo.create_match(payload.rater_user_id, payload.rated_user_id)
+    is_match = await matching_repo.create_match(payload.rater_user_id, payload.rated_user_id, payload.rater_username, payload.rated_username)
     if is_match:
         match = await matching_repo.get_match(payload.rater_user_id, payload.rated_user_id)
         print('-----------------------', match)
@@ -41,6 +45,8 @@ async def create_like(
                         UserMatch(
                             user1_id=match.user1_telegram_id,
                             user2_id=match.user2_telegram_id,
+                            user1_username=match.user1_username,
+                            user2_username=match.user2_username,
                             # match_data=match.matched_at
                         )
                     )

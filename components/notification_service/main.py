@@ -27,6 +27,8 @@ async def process_message(message: IncomingMessage):
             body = msgpack.unpackb(message.body)
             user1_id = body.get("user1_id")
             user2_id = body.get("user2_id")
+            user1_username = body.get("user1_username")
+            user2_username = body.get("user2_username")
             # match_date = body.get("match_date")
 
             # Validate the message fields
@@ -34,8 +36,8 @@ async def process_message(message: IncomingMessage):
                 raise ValueError("Message is missing required fields (user1_id, user2_id, match_date).")
 
             # Create and send customized Telegram messages for both users
-            user1_message = f"You got a match with user {user2_id}."
-            user2_message = f"You got a match with user {user1_id}."
+            user1_message = f"Поздравляем! У вас матч с @{user2_username}!"
+            user2_message = f"Поздравляем! У вас матч с @{user1_username}!"
 
             await send_telegram_message(user1_id, user1_message)
             await send_telegram_message(user2_id, user2_message)

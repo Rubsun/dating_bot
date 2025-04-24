@@ -107,10 +107,12 @@ async def waiting_for_city(message: types.Message, state: FSMContext):
 @router.message(ProfileCreationStates.waiting_for_photo, F.photo | (F.text.lower() == "пропустить"))
 async def waiting_for_photo(message: types.Message, state: FSMContext):
     profile_data = await state.get_data()
+    print('cosn:', profile_data)
+
     photo_bytes = None
     photo_file_id = None
 
-    if message.photo is not None and (message.photo[-1] is not None):
+    if message.photo:
         logging.info("Fimoz: %s, %s", message.photo, message.photo[-1])
         logging.info('if message.photo')
         photo = message.photo[-1]
@@ -144,11 +146,12 @@ async def waiting_for_photo(message: types.Message, state: FSMContext):
             refill=None,
         )
 
-
+    profile_data['tg_username'] = message.from_user.username
     payload_data = {
         "telegram_id": profile_data["user_id"],
         "first_name": profile_data["first_name"],
         "last_name": profile_data["last_name"],
+        "tg_username": profile_data['tg_username'],
         "bio": profile_data.get("bio", ""),
         "age": profile_data["age"],
         "gender": profile_data["gender"],
@@ -163,6 +166,7 @@ async def waiting_for_photo(message: types.Message, state: FSMContext):
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = None
             form_data_str = {k: str(v) for k, v in payload_data.items()}
+            print('Form data1311114:', form_data_str)
 
             files = {}
             if photo_bytes:
@@ -174,7 +178,6 @@ async def waiting_for_photo(message: types.Message, state: FSMContext):
                 files=files
             )
             print('Create profile resp:', response.json())
-            print('Payload:', form_data_str)
 
             if response.status_code in (200, 201):
                 rating_service_url = "http://localhost:8001/api/v1/ratings"
@@ -241,6 +244,7 @@ async def show_next_profile(message: types.Message, state: FSMContext):
                 profile_data = response.json()
                 await state.update_data(
                     viewing_profile_id=profile_data['user_id'],
+                    viewing_profile_username=profile_data['tg_username'],
                     view_offset=data.get('view_offset', 0) + 1
                 )
                 await state.set_state(ViewingStates.viewing)
@@ -306,6 +310,7 @@ async def process_rating_callback(callback: types.CallbackQuery, state: FSMConte
     current_user_id = callback.from_user.id
     state_data = await state.get_data()
     viewing_profile_id = state_data.get('viewing_profile_id')
+    viewing_profile_username = state_data.get('viewing_profile_username')
 
     if not viewing_profile_id:
         await callback.answer("Ошибка: не найдена анкета для оценки.", show_alert=True)
@@ -322,7 +327,7 @@ async def process_rating_callback(callback: types.CallbackQuery, state: FSMConte
         return
 
     rating_service_url = "http://localhost:8001/api/v1/ratings"
-    endpoint = f"{rating_service_url}/{action}"
+    matching_service_url = "http://localhost:8002/api/v1/match/like"
 
     payload = {
         "rater_user_id": current_user_id,
@@ -331,14 +336,33 @@ async def process_rating_callback(callback: types.CallbackQuery, state: FSMConte
 
     try:
         async with httpx.AsyncClient() as client:
-            response = await client.post(endpoint, json=payload)
+            rating_response = await client.post(
+                f"{rating_service_url}/{action}",
+                json=payload
+            )
 
-        if response.status_code == 200:
-            await callback.answer(f"Вы поставили {('лайк' if action == 'like' else 'дизлайк')}!")
+        if rating_response.status_code == 200:
+            async with httpx.AsyncClient() as client:
+                matching_response = await client.post(
+                    f"{matching_service_url}",
+                    json={
+                        "rater_user_id": current_user_id,
+                        "rated_user_id": viewing_profile_id,
+                        "rater_username": callback.from_user.username,
+                        "rated_username": viewing_profile_username,
+                        "like_type": action
+                    }
+                )
+                print('Matching response:', matching_response.json())
+
+            if matching_response.status_code == 200:
+                await callback.answer(f"Вы поставили {('лайк' if action == 'like' else 'дизлайк')}!")
+            else:
+                print('Error:', matching_response.json())
             # Показать следующую анкету
             await show_next_profile(callback.message, state)
         else:
-            await callback.answer(f"Ошибка при отправке оценки: {response.status_code}", show_alert=True)
+            await callback.answer(f"Ошибка при отправке оценки: {rating_response.status_code}", show_alert=True)
             await callback.message.answer("Не удалось обработать ваш голос. Попробуйте позже.")
             await state.clear()
 

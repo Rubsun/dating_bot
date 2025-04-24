@@ -23,6 +23,7 @@ async def validate_profile_form(
         telegram_id: Annotated[int, Form(...)],
         first_name: Annotated[str, Form(...)],
         last_name: Annotated[str, Form(...)],
+        tg_username: Annotated[str, Form(...)],
         bio: Annotated[Optional[str], Form()] = None,
         photo_file_id: Annotated[Optional[str], Form()] = None,
 ) -> ProfileFormData:
@@ -31,6 +32,7 @@ async def validate_profile_form(
             telegram_id=telegram_id,
             first_name=first_name,
             last_name=last_name,
+            tg_username=tg_username,
             bio=bio,
             age=age,
             gender=gender,

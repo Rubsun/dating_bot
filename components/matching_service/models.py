@@ -23,4 +23,6 @@ class Match(Base):
     # Чтобы избежать дубликатов (A-B и B-A), мы будем всегда хранить ID в определенном порядке
     user1_telegram_id = Column(BigInteger, primary_key=True, nullable=False)
     user2_telegram_id = Column(BigInteger, primary_key=True, nullable=False)
+    user1_username = Column(String, primary_key=True, nullable=False)
+    user2_username = Column(String, primary_key=True, nullable=False)
     matched_at = Column(TIMESTAMP, server_default=func.now())

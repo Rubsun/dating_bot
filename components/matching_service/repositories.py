@@ -32,6 +32,8 @@ class LikeMatchRepository:
             self,
             rater_user_id: int,
             rated_user_id: int,
+            rater_username: str,
+            rated_username: str,
     ) -> bool:
         mutual_like_result = await self.db.execute(
             select(Like).where(
@@ -46,6 +48,11 @@ class LikeMatchRepository:
             print(f"Взаимный лайк обнаружен между {rater_user_id} и {rated_user_id}!")
 
             # Определяем порядок ID для записи в таблицу matches
+            user_id_to_username = {
+                rater_user_id: rater_username,
+                rated_user_id: rated_username,
+            }
+
             user1 = min(rater_user_id, rated_user_id)
             user2 = max(rater_user_id, rated_user_id)
 
@@ -65,6 +72,8 @@ class LikeMatchRepository:
                 new_match = Match(
                     user1_telegram_id=user1,
                     user2_telegram_id=user2,
+                    user1_username=user_id_to_username[user1],
+                    user2_username=user_id_to_username[user2],
                     matched_at=datetime.now()# Устанавливаем время совпадения
                 )
                 self.db.add(new_match)

@@ -11,6 +11,7 @@ class Profile(Base):
     id = Column(BigInteger, primary_key=True, index=True)
     first_name = Column(String(100), nullable=False)
     last_name = Column(String(100), nullable=False)
+    tg_username = Column(String(100), nullable=False)
     bio = Column(Text, nullable=True)
     age = Column(Integer, nullable=False)
     gender = Column(String(10), nullable=False)  # Male, Female, Other

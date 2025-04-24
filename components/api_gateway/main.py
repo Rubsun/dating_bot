@@ -6,6 +6,7 @@ from aiogram.fsm.storage.memory import MemoryStorage
 
 from components.api_gateway.config import Config
 from components.api_gateway.controllers.bot.handlers import router as handler_router
+from components.api_gateway.controllers.bot.middlewares import CheckUsernameMiddleware
 from components.api_gateway.di import setup_di
 
 logging.basicConfig(
@@ -18,6 +19,7 @@ async def start_polling():
     cfg = await container.get(Config)
 
     bot = Bot(token=cfg.bot.bot_token)
+
     await bot.set_my_commands(
         commands=[
             types.BotCommand(command='start', description='Начать работу с ботом'),
@@ -27,6 +29,7 @@ async def start_polling():
     )
 
     dp = Dispatcher(storage=MemoryStorage())  # TODO Redis
+    dp.message.middleware(CheckUsernameMiddleware())
     dp.include_router(handler_router)
 
     await dp.start_polling(bot)
