@@ -2,7 +2,6 @@ from fastapi import HTTPException, APIRouter
 
 from dishka import FromDishka
 from dishka.integrations.fastapi import DishkaRoute
-from redis.commands.search.querystring import equal
 
 from components.rating_service.repositories import ProfileRatingRepository
 

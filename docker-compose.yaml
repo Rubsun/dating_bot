@@ -26,6 +26,20 @@ services:
     depends_on:
       db:
         condition: service_healthy
+
+  matching_service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: "dating_bot-matching_service"
+    environment:
+      MATCHING_SERVICE_CONFIG_PATH: "./components/matching_service/configs/app.docker.toml"
+    command: uv run uvicorn components.matching_service.main:app --port 8002 --host 0.0.0.0
+    ports:
+      - "127.0.0.1:8002:8002"
+    depends_on:
+      db:
+        condition: service_healthy
 #      redis:
 #        condition: service_started
 

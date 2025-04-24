@@ -1,36 +1,37 @@
-from components.matching_service.services import MatchingServicer
-import asyncio
-import logging
+from contextlib import asynccontextmanager
+from typing import AsyncGenerator
 
-import grpc.aio
-from dishka.integrations.grpcio import DishkaAioInterceptor
+from dishka import AsyncContainer
+from dishka.integrations.fastapi import setup_dishka
+from fastapi import FastAPI
 
-from components.matching_service.config import Config
+from components.matching_service.routers import \
+    router as rating_router
 from components.matching_service.di import setup_di
-from common.protos import matching_pb2_grpc
-
-logging.basicConfig(level=logging.INFO)
 
 
-async def serve():
-    container = setup_di()
-    server = grpc.aio.server(interceptors=[DishkaAioInterceptor(container)])
+@asynccontextmanager
+async def lifespan(app_: FastAPI) -> AsyncGenerator[None, None]:
+    yield
 
-    cfg = await container.get(Config)
-    service = await container.get(MatchingServicer)
-
-    matching_pb2_grpc.add_MatchingServicer_to_server(service, server)
-
-    server.add_insecure_port(f"{cfg.grpc.uri}")
-    await server.start()
-    logging.info(f"Matching Service started")
-
-    try:
-        await server.wait_for_termination()
-    except KeyboardInterrupt:
-        logging.info("Received keyboard interrupt. Gracefully stopping...")
-        await server.stop(5)  # 5 секунд на graceful shutdown
+    await app_.container.close()
 
 
-if __name__ == '__main__':
-    asyncio.run(serve())
+def create_app(ioc_container: AsyncContainer):
+    application = FastAPI(title="Dating Bot Matching Service",
+                          version="1.0.0", lifespan=lifespan)
+
+    setup_dishka(container=ioc_container, app=application)
+    application.container = ioc_container
+
+    application.include_router(rating_router, prefix="/api/v1", tags=["matching"])
+
+    @application.get("/health")
+    async def health_check():
+        return {"status": "healthy"}
+
+    return application
+
+
+container = setup_di()
+app = create_app(container)
