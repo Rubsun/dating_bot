@@ -79,3 +79,15 @@ class LikeMatchRepository:
         else:
             print(f"Взаимный лайк от пользователя {rated_user_id} не найден.")
             return False # Совпадения не произошло
+
+    async def get_match(self, user1_id: int, user2_id: int) -> Match:
+        user1 = min(user1_id, user2_id)
+        user2 = max(user1_id, user2_id)
+
+        match_result = await self.db.execute(
+            select(Match).where(
+                Match.user1_telegram_id == user1,
+                Match.user2_telegram_id == user2
+            )
+        )
+        return match_result.scalars().first()

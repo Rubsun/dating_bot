@@ -12,5 +12,5 @@ name = "postgres"
 [rmq]
 host = 'rabbitmq'
 port = 5672
-user = 'guest'
-password = 'guest'
+#user = 'guest'
+#password = 'guest'

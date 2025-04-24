@@ -10,12 +10,6 @@ from components.matching_service.config import Config, load_config
 from components.matching_service.models import Base, Like, Match  # noqa
 from components.matching_service.repositories import LikeMatchRepository
 
-from components.matching_service.rabbit import get_connection_pool, get_channel
-
-from aio_pika import Connection
-from aio_pika.abc import AbstractChannel
-from aio_pika.pool import Pool
-
 
 def config_provider() -> Provider:
     provider = Provider()
@@ -50,14 +44,6 @@ class MatchingServiceProvider(Provider):
     async def get_repository(self, session: AsyncSession) -> LikeMatchRepository:
         return LikeMatchRepository(db=session)
 
-
-def rmq_provider() -> Provider:
-    provider = Provider()
-
-    provider.provide(get_connection_pool, provides=Pool[Connection], scope=Scope.APP)
-    provider.provide(get_channel, provides=AbstractChannel, scope=Scope.REQUEST)
-
-    return provider
 
 def setup_di():
     return make_async_container(

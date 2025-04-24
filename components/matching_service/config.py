@@ -21,18 +21,16 @@ class DatabaseConfig:
 class RMQConfig:
     host: str
     port: int
-    user: str
-    password: str
-    pool_size: int = 10
 
-    @property
-    def uri(self) -> str:
-        return f"amqp://{self.user}:{self.password}@{self.host}:{self.port}/"
+    def __post_init__(self) -> None:
+        self.uri = (
+            f"amqp://guest:guest@{self.host}:{self.port}/"
+        )
 
 @dataclass
 class Config:
     db: DatabaseConfig
-    rmq: RMQConfig
+    rabbitmq: RMQConfig
 
 
 def load_config(config_path: str) -> Config:
@@ -40,5 +38,5 @@ def load_config(config_path: str) -> Config:
         data = toml.load(config_file)
     return Config(
         db=DatabaseConfig(**data["db"]),
-        rmq=RMQConfig(**data["rmq"]),
+        rabbitmq=RMQConfig(**data["rmq"]),
     )

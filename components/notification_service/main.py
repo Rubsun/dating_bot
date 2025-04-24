@@ -1,5 +1,6 @@
 import asyncio
 import aio_pika
+import msgpack
 from aio_pika import connect, IncomingMessage, ExchangeType
 from aiogram import Bot
 import json
@@ -23,18 +24,18 @@ async def process_message(message: IncomingMessage):
     async with message.process():
         try:
             # Decode and parse the incoming JSON message
-            body = json.loads(message.body.decode())
+            body = msgpack.unpackb(message.body)
             user1_id = body.get("user1_id")
             user2_id = body.get("user2_id")
-            match_date = body.get("match_date")
+            # match_date = body.get("match_date")
 
             # Validate the message fields
-            if not all([user1_id, user2_id, match_date]):
+            if not all([user1_id, user2_id]):
                 raise ValueError("Message is missing required fields (user1_id, user2_id, match_date).")
 
             # Create and send customized Telegram messages for both users
-            user1_message = f"You got a match with user {user2_id} on {match_date}."
-            user2_message = f"You got a match with user {user1_id} on {match_date}."
+            user1_message = f"You got a match with user {user2_id}."
+            user2_message = f"You got a match with user {user1_id}."
 
             await send_telegram_message(user1_id, user1_message)
             await send_telegram_message(user2_id, user2_message)
