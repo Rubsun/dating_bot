@@ -49,7 +49,13 @@ async def main():
     connection = await aio_pika.connect_robust(cfg.rabbitmq.uri)
     async with connection:
         channel = await connection.channel()
+        exchange = await channel.declare_exchange("matches", ExchangeType.DIRECT)
+
+        # Declare the "matches" queue
         queue = await channel.declare_queue("matches")
+
+        # Bind the queue to the default exchange
+        await queue.bind(exchange)
 
         print('Consuming queue..')
         await queue.consume(process_message)
