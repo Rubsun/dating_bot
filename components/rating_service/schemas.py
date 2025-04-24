@@ -13,7 +13,7 @@ class ProfileInfo(BaseModel):
         ..., example="Male", description="Allowed values: Male, Female, Other"
     )
     city: str = Field(..., max_length=100, example="New York")
-    photo: Optional[bytes] = Field(..., description='photo content')
+    photo_file_id: Optional[str] = Field(None, example="AgACAgUAAxkBAA...")
 
 
 class RatingBase(BaseModel):

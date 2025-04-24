@@ -20,7 +20,7 @@ class ProfileRatingCalculator:
 
         # Суммируем баллы с весами
         # score += profile_data.get('profile_completeness', 0) * cls.WEIGHTS['profile_completeness']
-        score += (1 if profile_data.photo else 0) * cls.WEIGHTS['photo_quality']
+        score += (1 if profile_data.photo_file_id else 0) * cls.WEIGHTS['photo_quality']
         score += (1 if profile_data.bio else 0) * cls.WEIGHTS['description_quality']
 
         # Применяем максимальный бонус

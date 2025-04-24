@@ -1,5 +1,8 @@
+from typing import Optional
+
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
+
 from components.profile_service.models import Profile
 
 
@@ -16,7 +19,8 @@ class ProfileRepository:
             age: int,
             gender: str,
             city: str,
-            photo_path: str
+            photo_path: str,
+            photo_file_id: str
     ) -> Profile:
         # Create a new Profile object
         new_profile = Profile(
@@ -28,6 +32,7 @@ class ProfileRepository:
             gender=gender,
             city=city,
             photo_path=photo_path,
+            photo_file_id=photo_file_id,
         )
         self.db.add(new_profile)
         await self.db.commit()
@@ -51,3 +56,13 @@ class ProfileRepository:
         await self.db.delete(profile)
         await self.db.commit()
         return True
+
+    async def get_next_profile(self, viewer_id: int) -> Optional[Profile]:
+        """
+        Возвращает первую попавшуюся анкету, не совпадающую с viewer_id.
+        TODO: Добавить фильтрацию уже просмотренных анкет.
+        """
+        result = await self.db.execute(
+            select(Profile).where(Profile.id != viewer_id).limit(1)
+        )
+        return result.scalars().first()

@@ -16,3 +16,4 @@ class Profile(Base):
     gender = Column(String(10), nullable=False)  # Male, Female, Other
     city = Column(String(100), nullable=False)
     photo_path = Column(String(255), nullable=True)  # To save the photo file path
+    photo_file_id = Column(String(255), nullable=True)
