@@ -16,11 +16,12 @@ router = APIRouter(route_class=DishkaRoute)
 async def create_profile(
         profile_repo: FromDishka[ProfileRepository],
         s3_client: FromDishka[MinIOClient],
-        photo: Optional[UploadFile],
-    profile_data: ProfileFormData = Depends(validate_profile_form),
+        photo: Optional[UploadFile] = None,
+        profile_data: ProfileFormData = Depends(validate_profile_form),
 ):
     photo_url = None
     if photo:
+        print("Photo:", photo)
         if photo.content_type not in ["image/jpeg", "image/png", "image/gif"]:
             raise HTTPException(status_code=400, detail="Invalid file type. Only JPG, PNG, GIF allowed.")
 
@@ -84,6 +85,7 @@ async def get_profile(profile_id: int, profile_repo: FromDishka[ProfileRepositor
         "gender": profile.gender,
         "city": profile.city,
         "photo_path": profile.photo_path,
+        "photo_file_id": profile.photo_file_id,
     }
 
 

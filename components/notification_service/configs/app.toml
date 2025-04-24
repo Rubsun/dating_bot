@@ -1,0 +1,6 @@
+[bot]
+bot_token = "7530248180:AAEliB4WmUcLKeVllNCphmAhYZr9U3w6478"
+
+[rmq]
+host = "localhost"
+port = 5672

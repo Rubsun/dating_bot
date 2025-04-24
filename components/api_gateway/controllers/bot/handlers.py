@@ -1,7 +1,7 @@
 import logging
 
 import httpx
-from aiogram import Router, F
+from aiogram import Router, F, Bot
 from aiogram import types
 from aiogram.filters import CommandStart, StateFilter, Command
 from aiogram.fsm.context import FSMContext
@@ -13,9 +13,11 @@ from components.api_gateway.controllers.bot.states import ProfileCreationStates
 
 router = Router()
 
+DEFAULT_PROFILE_PHOTO_ID = "AgACAgIAAxkBAAInBWgKBbyXVV1FRr3Ox4s7AuynlXQVAAKO9DEbRd1RSCfD3X6lDdSLAQADAgADbQADNgQ"
+
 
 @router.message(CommandStart())
-async def start_cmd(message: types.Message, state: FSMContext):
+async def start_cmd(message: types.Message, state: FSMContext, bot: Bot):
     user_id = message.from_user.id
     first_name = message.from_user.first_name
 
@@ -35,7 +37,7 @@ async def start_cmd(message: types.Message, state: FSMContext):
                 parse_mode="HTML",
             )
         elif response.status_code == 200:
-            await message.answer("Ваша анкета активна. Можете начать просмотр других анкет командой /view")
+            await message.answer("Ваша анкета активна. Можете посмотреть свою анкету командой /profile или начать просмотр других анкет командой /view")
         else:
             await message.answer(f"Произошла ошибка при проверке профиля: {response.status_code}")
 
@@ -108,7 +110,8 @@ async def waiting_for_photo(message: types.Message, state: FSMContext):
     photo_bytes = None
     photo_file_id = None
 
-    if message.photo:
+    if message.photo is not None and (message.photo[-1] is not None):
+        logging.info("Fimoz: %s, %s", message.photo, message.photo[-1])
         logging.info('if message.photo')
         photo = message.photo[-1]
         photo_file_id = photo.file_id
@@ -128,6 +131,20 @@ async def waiting_for_photo(message: types.Message, state: FSMContext):
 
     await message.answer("Сохраняем вашу анкету...", reply_markup=remove_kb)
 
+    refill = profile_data.get("refill")
+    if refill:
+        logging.info("refill: %s. Deleting profile..", refill)
+
+        profile_service_url = "http://localhost:8000/api/v1/profiles"
+        async with httpx.AsyncClient() as client:
+            response = await client.delete(f"{profile_service_url}/{profile_data['user_id']}")
+            logging.info("Deletion status: %d; data: %s", response.status_code, response.json())
+
+        await state.update_data(
+            refill=None,
+        )
+
+
     payload_data = {
         "telegram_id": profile_data["user_id"],
         "first_name": profile_data["first_name"],
@@ -141,6 +158,7 @@ async def waiting_for_photo(message: types.Message, state: FSMContext):
 
     profile_service_url = "http://localhost:8000/api/v1/profiles"
 
+    print('Trying to create profile...')
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = None
@@ -149,14 +167,14 @@ async def waiting_for_photo(message: types.Message, state: FSMContext):
             files = {}
             if photo_bytes:
                 files["photo"] = ("profile_photo.jpg", photo_bytes, "image/jpeg")
-            else:
-                files["photo"] = None
 
             response = await client.post(
                 profile_service_url,
                 data=form_data_str,
                 files=files
             )
+            print('Create profile resp:', response.json())
+            print('Payload:', form_data_str)
 
             if response.status_code in (200, 201):
                 rating_service_url = "http://localhost:8001/api/v1/ratings"
@@ -176,7 +194,7 @@ async def waiting_for_photo(message: types.Message, state: FSMContext):
                     "✅ Ваша анкета успешно создана! Можете начать просмотр других анкет командой /view")
                 await state.clear()
             elif response.status_code == 422:
-                 await message.answer(f"❌ Ошибка валидации данных при создании анкеты: {response.text}")
+                await message.answer(f"❌ Ошибка валидации данных при создании анкеты: {response.text}")
             elif response.status_code == 400:
                 await message.answer(f"❌ Ошибка в данных при создании анкеты: {response.text}")
             else:
@@ -228,14 +246,14 @@ async def show_next_profile(message: types.Message, state: FSMContext):
                 await state.set_state(ViewingStates.viewing)
 
                 caption = (
-                    f"<b>{profile_data['first_name']} {profile_data.get('last_name', '')}, {profile_data['age']}</b>\n"
-                    f"📍 Город: {profile_data['city']}\n\n"
-                    f"{profile_data.get('bio', 'Нет описания')}"
+                    f"<b>{profile_data['first_name']} {profile_data.get('last_name', '')}, {profile_data['age']}</b>, {profile_data['city']}\n"
+                    f"Пол: {'М' if profile_data['gender'] == 'male' else 'Ж'}\n\n"
+                    f"{'О себе: ' + profile_data.get('bio') if profile_data.get('bio') != '' else 'Нет описания'}"
                 )
 
                 keyboard = get_rating_keyboard()
 
-                if profile_data.get('photo_file_id'):
+                if profile_data.get('photo_file_id') and profile_data.get('photo_file_id') != "None":
                     logging.info(profile_data['photo_file_id'])
                     await message.answer_photo(
                         photo=profile_data['photo_file_id'],
@@ -244,8 +262,9 @@ async def show_next_profile(message: types.Message, state: FSMContext):
                         reply_markup=keyboard
                     )
                 else:
-                    await message.answer(
-                        text=caption,
+                    await message.answer_photo(
+                        photo=DEFAULT_PROFILE_PHOTO_ID,
+                        caption=caption,
                         parse_mode="HTML",
                         reply_markup=keyboard
                     )
@@ -331,3 +350,63 @@ async def process_rating_callback(callback: types.CallbackQuery, state: FSMConte
         await callback.answer(f"Непредвидённая ошибка: {e}", show_alert=True)
         await callback.message.answer("Что-то пошло не так.")
         await state.clear()
+
+
+@router.message(Command("profile"), StateFilter(None))
+async def get_my_profile(message: types.Message, state: FSMContext):
+    async with httpx.AsyncClient() as client:
+        profile_service_url = "http://localhost:8000/api/v1/profiles"
+        response = await client.get(f"{profile_service_url}/{message.from_user.id}")
+
+        if response.status_code == 200:
+            profile_data = response.json()
+            caption = (
+                f"<b>{profile_data['first_name']} {profile_data.get('last_name', '')}, {profile_data['age']}</b>, {profile_data['city']}\n"
+                f"Пол: {'М' if profile_data['gender'] == 'male' else 'Ж'}\n\n"
+                f"{'О себе: ' + profile_data.get('bio') if profile_data.get('bio') != '' else 'Нет описания'}"
+            )
+            keyboard = get_my_profile_keyboard()
+
+            if profile_data.get('photo_file_id') and profile_data.get('photo_file_id') != "None":
+                await message.answer_photo(
+                    photo=profile_data['photo_file_id'],
+                    caption=caption,
+                    parse_mode="HTML",
+                    reply_markup=keyboard
+                )
+            else:
+                await message.answer_photo(
+                    photo=DEFAULT_PROFILE_PHOTO_ID,
+                    caption=caption,
+                    parse_mode="HTML",
+                    reply_markup=keyboard
+                )
+        elif response.status_code == 404:
+            await message.answer("Сначала вам нужно создать свою анкету. Введите /start")
+        else:
+            await message.answer(f"Не удалось проверить вашу анкету. Ошибка: {response.status_code}")
+
+
+@router.callback_query(F.data == 'my_profile-reset')
+async def fill_profile_again(callback: types.CallbackQuery, state: FSMContext):
+    await state.update_data(
+        user_id=callback.from_user.id,
+        refill=True,
+    )
+    await state.set_state(ProfileCreationStates.waiting_for_first_name)
+    await callback.message.answer(
+        "📝 <b>Как тебя зовут</b> (Это имя будут видеть другие пользователи)",
+        parse_mode="HTML",
+    )
+
+@router.message(F.content_type == 'photo')
+async def get_photo(message: types.Message, state: FSMContext):
+    print(message.photo[-1].file_id)
+
+
+def get_my_profile_keyboard():
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text='Заполнить заново', callback_data='my_profile-reset')]
+        ]
+    )

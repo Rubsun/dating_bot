@@ -125,6 +125,13 @@ services:
 #      - GF_SECURITY_ADMIN_PASSWORD=admin
 #    restart: unless-stopped
 
+  rabbitmq:
+    image: rabbitmq:3.13.7-management
+    container_name: "learn_anything-rabbitmq"
+    ports:
+      - "127.0.0.1:5672:5672"
+      - "127.0.0.1:15672:15672"
 volumes:
   postgres_data:
+
 #  redis_data:

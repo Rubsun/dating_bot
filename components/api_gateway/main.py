@@ -1,7 +1,7 @@
 import asyncio
 import logging
 
-from aiogram import Bot, Dispatcher
+from aiogram import Bot, Dispatcher, types
 from aiogram.fsm.storage.memory import MemoryStorage
 
 from components.api_gateway.config import Config
@@ -18,8 +18,15 @@ async def start_polling():
     cfg = await container.get(Config)
 
     bot = Bot(token=cfg.bot.bot_token)
-    dp = Dispatcher(storage=MemoryStorage())  # TODO Redis
+    await bot.set_my_commands(
+        commands=[
+            types.BotCommand(command='start', description='Начать работу с ботом'),
+            types.BotCommand(command='view', description='Смотреть анкеты'),
+            types.BotCommand(command='profile', description='Мой профиль'),
+        ]
+    )
 
+    dp = Dispatcher(storage=MemoryStorage())  # TODO Redis
     dp.include_router(handler_router)
 
     await dp.start_polling(bot)
