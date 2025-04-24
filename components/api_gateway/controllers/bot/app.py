@@ -6,7 +6,7 @@ from aiogram.fsm.storage.memory import MemoryStorage
 
 from components.api_gateway.controllers.bot.handlers import router as handler_router
 
-BOT_TOKEN = "7066916393:AAFOAZtmf__xt9Fl-XSM9GpTQvddn98skkI"
+BOT_TOKEN = "7530248180:AAEliB4WmUcLKeVllNCphmAhYZr9U3w6478"
 
 logging.basicConfig(
     level=logging.INFO,

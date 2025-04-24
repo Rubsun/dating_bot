@@ -4,9 +4,8 @@ import grpc
 from dishka import Provider, Scope, make_async_container, provide
 
 from components.api_gateway.config import Config, load_config
-from components.protos import matching_pb2_grpc
+from common.protos import matching_pb2_grpc
 
-# from collections.abc import AsyncGenerator
 
 
 def config_provider() -> Provider:

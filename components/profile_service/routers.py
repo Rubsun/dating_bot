@@ -101,9 +101,10 @@ async def delete_profile(profile_id: int, profile_repo: FromDishka[ProfileReposi
 @router.get("/profiles/next/{viewer_id}")
 async def get_next_profile_to_view(
         viewer_id: int,
-        profile_repo: FromDishka[ProfileRepository]
+        profile_repo: FromDishka[ProfileRepository],
+        offset: int = 0,
 ):
-    profile = await profile_repo.get_next_profile(viewer_id=viewer_id)
+    profile = await profile_repo.get_next_profile(viewer_id=viewer_id, offset=offset)
 
     if not profile:
         raise HTTPException(status_code=404, detail="No more profiles to view")

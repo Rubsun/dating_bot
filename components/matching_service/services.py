@@ -2,7 +2,7 @@ import logging
 
 from grpc.aio import ServicerContext
 
-from components.protos import matching_pb2, matching_pb2_grpc
+from common.protos import matching_pb2, matching_pb2_grpc
 
 logging.basicConfig(level=logging.INFO)
 

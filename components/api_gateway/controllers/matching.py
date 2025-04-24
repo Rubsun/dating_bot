@@ -4,7 +4,7 @@ from dishka.integrations.fastapi import DishkaRoute, FromDishka
 from fastapi import APIRouter, HTTPException
 from grpc.aio import AioRpcError
 
-from components.protos import matching_pb2, matching_pb2_grpc
+from common.protos import matching_pb2, matching_pb2_grpc
 
 logging.basicConfig(level=logging.INFO)
 

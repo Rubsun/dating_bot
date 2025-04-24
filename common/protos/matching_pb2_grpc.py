@@ -4,7 +4,7 @@ import warnings
 
 import grpc
 
-from components.protos import \
+from common.protos import \
     matching_pb2 as components_dot_protos_dot_matching__pb2
 
 GRPC_GENERATED_VERSION = '1.71.0'

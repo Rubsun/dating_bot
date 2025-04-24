@@ -1,37 +1,32 @@
-from contextlib import asynccontextmanager
-from typing import AsyncGenerator
+import asyncio
+import logging
 
-from dishka import AsyncContainer
-from dishka.integrations.fastapi import setup_dishka
-from fastapi import FastAPI
+from aiogram import Bot, Dispatcher
+from aiogram.fsm.storage.memory import MemoryStorage
 
-from components.api_gateway.controllers.matching import \
-    router as matching_router
+from components.api_gateway.config import Config
+from components.api_gateway.controllers.bot.handlers import router as handler_router
 from components.api_gateway.di import setup_di
 
+logging.basicConfig(
+    level=logging.INFO,
+    format='[%(asctime)s] [%(levelname)s] %(message)s',
+)
 
-@asynccontextmanager
-async def lifespan(app_: FastAPI) -> AsyncGenerator[None, None]:
-    yield
+async def start_polling():
+    container = setup_di()
+    cfg = await container.get(Config)
 
-    await app_.container.close()
+    bot = Bot(token=cfg.bot.bot_token)
+    dp = Dispatcher(storage=MemoryStorage())  # TODO Redis
 
+    dp.include_router(handler_router)
 
-def create_app(ioc_container: AsyncContainer):
-    application = FastAPI(title="Tinder Service",
-                          version="1.0.0", lifespan=lifespan)
-
-    setup_dishka(container=ioc_container, app=application)
-    application.container = ioc_container
-
-    application.include_router(matching_router, prefix="/api/v1")
-
-    @application.get("/health")
-    async def health_check():
-        return {"status": "healthy"}
-
-    return application
+    await dp.start_polling(bot)
 
 
-container = setup_di()
-app = create_app(container)
+if __name__ == "__main__":
+    logging.info("Запуск бота...")
+    logging.basicConfig(level=logging.INFO)
+    asyncio.run(start_polling())
+

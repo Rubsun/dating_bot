@@ -7,7 +7,7 @@ from dishka.integrations.grpcio import DishkaAioInterceptor
 
 from components.matching_service.config import Config
 from components.matching_service.di import setup_di
-from components.protos import matching_pb2_grpc
+from common.protos import matching_pb2_grpc
 
 logging.basicConfig(level=logging.INFO)
 

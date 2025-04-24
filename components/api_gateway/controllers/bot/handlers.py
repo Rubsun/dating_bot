@@ -209,9 +209,11 @@ def get_rating_keyboard() -> InlineKeyboardMarkup:
 
 
 async def show_next_profile(message: types.Message, state: FSMContext):
-    current_user_id = message.from_user.id
+    current_user_id = message.chat.id
+    data = await state.get_data()
+
     profile_service_url = "http://localhost:8000/api/v1/profiles"
-    next_profile_url = f"{profile_service_url}/next/{current_user_id}"
+    next_profile_url = f"{profile_service_url}/next/{current_user_id}?offset={data.get('view_offset', 0)}"
 
     try:
         async with httpx.AsyncClient() as client:
@@ -219,7 +221,10 @@ async def show_next_profile(message: types.Message, state: FSMContext):
 
             if response.status_code == 200:
                 profile_data = response.json()
-                await state.update_data(viewing_profile_id=profile_data['user_id'])
+                await state.update_data(
+                    viewing_profile_id=profile_data['user_id'],
+                    view_offset=data.get('view_offset', 0) + 1
+                )
                 await state.set_state(ViewingStates.viewing)
 
                 caption = (
