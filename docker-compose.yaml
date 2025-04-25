@@ -49,7 +49,7 @@ services:
       dockerfile: Dockerfile
     container_name: "dating_bot-notification_service"
     environment:
-      NOTIFICATION_SERVICE_CONFIG_PATH: "./components/notification_service/configs/docker.app.toml"
+      NOTIFICATION_SERVICE_CONFIG_PATH: "./components/notification_service/configs/app.docker.toml"
     command: uv run python -m components.notification_service.main
     depends_on:
       rabbitmq:
