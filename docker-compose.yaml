@@ -40,6 +40,29 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  notification_service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: "dating_bot-notification_service"
+    environment:
+      NOTIFICATION_SERVICE_CONFIG_PATH: "./components/notification_service/configs/docker.app.toml"
+    command: uv run python -m components.notification_service.main
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+  api_gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: "dating_bot-api_gateway"
+    environment:
+      API_GATEWAY_CONFIG_PATH: "./components/api_gateway/configs/app.docker.toml"
+    command: uv run python -m components.api_gateway.main
 #      redis:
 #        condition: service_started
 
@@ -127,10 +150,16 @@ services:
 
   rabbitmq:
     image: rabbitmq:3.13.7-management
-    container_name: "learn_anything-rabbitmq"
+    container_name: "dating_bot-rabbitmq"
     ports:
       - "127.0.0.1:5672:5672"
       - "127.0.0.1:15672:15672"
+    healthcheck:
+      test: rabbitmq-diagnostics -q ping
+      interval: 15s
+      timeout: 10s
+      retries: 4
+
 volumes:
   postgres_data:
 

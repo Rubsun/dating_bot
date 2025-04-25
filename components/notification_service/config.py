@@ -7,10 +7,12 @@ import toml
 class RMQConfig:
     host: str
     port: int
+    user: str
+    password: str
 
     def __post_init__(self) -> None:
         self.uri = (
-            f"amqp://guest:guest@{self.host}:{self.port}/"
+            f"amqp://{self.user}:{self.password}@{self.host}:{self.port}/"
         )
 
 

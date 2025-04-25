@@ -2,8 +2,10 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeybo
     KeyboardButton
 
 gender_kb = InlineKeyboardMarkup(inline_keyboard=[
-    [InlineKeyboardButton(text='Мужчина', callback_data='gender_male')],
-    [InlineKeyboardButton(text='Женщина', callback_data='gender_female')]
+    [
+        InlineKeyboardButton(text='Мужчина', callback_data='gender_male'),
+        InlineKeyboardButton(text='Женщина', callback_data='gender_female')
+    ]
 ])
 
 skip_kb = ReplyKeyboardMarkup(

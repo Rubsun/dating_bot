@@ -2,7 +2,7 @@
 bot_token = "7530248180:AAEliB4WmUcLKeVllNCphmAhYZr9U3w6478"
 
 [rmq]
-host = "localhost"
+host = "rabbitmq"
 port = 5672
 user = "guest"
 password = "guest"
