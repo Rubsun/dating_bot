@@ -10,8 +10,10 @@ from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from dishka.integrations.aiogram import FromDishka
 
 from components.api_gateway.config import Config
-from components.api_gateway.controllers.bot.keyboards import gender_kb, remove_kb, skip_kb
+from components.api_gateway.controllers.bot.keyboards import gender_kb, remove_kb, skip_kb, get_my_profile_keyboard, \
+    gender_preferences_kb
 from components.api_gateway.controllers.bot.states import ProfileCreationStates
+from components.api_gateway.controllers.utils import get_coordinates
 
 router = Router()
 
@@ -98,12 +100,45 @@ async def select_gender(callback: types.CallbackQuery, state: FSMContext):
 @router.message(ProfileCreationStates.waiting_for_city)
 async def waiting_for_city(message: types.Message, state: FSMContext):
     city = message.text.strip()
-    if not (city.istitle() and city.isalpha()):
-        await message.answer("Название города должно начинаться с заглавной буквы и содержать только буквы.")
+    city_coords = get_coordinates(city)
+    if city_coords is None:
+        await message.answer("Такого города не существует. Введите город")
         return
-    await state.update_data(city=city)
+    await state.update_data(
+        latitude=city_coords[0],
+        longitude=city_coords[1],
+        city=city,
+    )
+    await state.set_state(ProfileCreationStates.waiting_for_gender_preference)
+    await message.answer("Кого вы ищете?", reply_markup=gender_preferences_kb)
+
+
+@router.callback_query(F.data.startswith("gender_pref"),
+                       StateFilter(ProfileCreationStates.waiting_for_gender))
+async def waiting_for_gender_preference(callback: types.CallbackQuery, state: FSMContext):
+    preferred_gender = callback.data.split(':')[1]
+    await state.update_data(preferred_gender=preferred_gender)
+    await state.set_state(ProfileCreationStates.waiting_for_age_preference)
+    await callback.message.answer("Пришлите желаемый диапазон возраста в формате 'минмальный_возраст-максимальный_возраст (Пример: 18-35)'")
+
+
+@router.message(F.text, StateFilter(ProfileCreationStates.waiting_for_age_preference))
+async def waiting_for_age_preference(message: types.Message, state: FSMContext):
+    try:
+        min_age, max_age = message.text.split('-')
+    except Exception as e:
+        print(e)
+        await message.answer('Плохой формат')
+        return
+
+    await state.update_data(
+        preferred_min_age=min_age,
+        preferred_max_age=max_age,
+    )
     await state.set_state(ProfileCreationStates.waiting_for_photo)
     await message.answer("Пришлите фото для вашего профиля (или нажмите 'Пропустить')", reply_markup=skip_kb)
+
+
 
 @router.message(ProfileCreationStates.waiting_for_photo, F.photo | (F.text.lower() == "пропустить"))
 async def waiting_for_photo(message: types.Message, state: FSMContext, cfg: FromDishka[Config]):
@@ -146,25 +181,32 @@ async def waiting_for_photo(message: types.Message, state: FSMContext, cfg: From
             refill=None,
         )
 
-    profile_data['tg_username'] = message.from_user.username
-    payload_data = {
+    new_profile_data = {
         "telegram_id": profile_data["user_id"],
         "first_name": profile_data["first_name"],
         "last_name": profile_data["last_name"],
-        "tg_username": profile_data['tg_username'],
+        "tg_username": message.from_user.username,
         "bio": profile_data.get("bio", ""),
         "age": profile_data["age"],
         "gender": profile_data["gender"],
-        "city": profile_data["city"],
+        "city": profile_data['city'],
         "photo_file_id": photo_file_id
+    }
+
+    preferences_data = {
+        "telegram_id": profile_data['user_id'],
+        "latitude": profile_data["latitude"],
+        "longitude": profile_data["longitude"],
+        "preferred_gender": profile_data["preferred_gender"],
+        "preferred_min_age": profile_data["preferred_min_age"],
+        "preferred_max_age": profile_data["preferred_max_age"],
     }
 
 
     print('Trying to create profile...')
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
-            response = None
-            form_data_str = {k: str(v) for k, v in payload_data.items()}
+            form_data_str = {k: str(v) for k, v in new_profile_data.items()}
             print('Form data1311114:', form_data_str)
 
             files = {}
@@ -178,29 +220,40 @@ async def waiting_for_photo(message: types.Message, state: FSMContext, cfg: From
             )
             print('Create profile resp:', response.json())
 
-            if response.status_code in (200, 201):
-                try:
-                    async with httpx.AsyncClient() as rating_client:
-                        rating_response = await rating_client.post(
-                            cfg.rating_service_url,
-                            json=payload_data
-                        )
-                        if rating_response.status_code not in (200, 201):
-                            logging.warning(
-                                f"Не удалось создать рейтинг: {rating_response.status_code} {rating_response.text}")
-                except Exception as e:
-                    logging.error(f"Ошибка при создании рейтинга: {e}")
-
-                await message.answer(
-                    "✅ Ваша анкета успешно создана! Можете начать просмотр других анкет командой /view")
-                await state.clear()
-            elif response.status_code == 422:
-                await message.answer(f"❌ Ошибка валидации данных при создании анкеты: {response.text}")
-            elif response.status_code == 400:
-                await message.answer(f"❌ Ошибка в данных при создании анкеты: {response.text}")
-            else:
+            if response.status_code not in (200, 201):
+                logging.error(f"Ошибка при создании анкеты: {response.status_code} {response.text}")
                 await message.answer(f"❌ Произошла ошибка при создании анкеты: {response.status_code} {response.text}")
+                return
 
+            try:
+                rating_response = await client.post(
+                        cfg.rating_service_url,
+                        json=new_profile_data
+                    )
+                if rating_response.status_code not in (200, 201):
+                    logging.warning(
+                            f"Не удалось создать рейтинг: {rating_response.status_code} {rating_response.text}")
+            except Exception as e:
+                logging.error(f"Ошибка при создании рейтинга: {e}")
+
+            try:
+                matching_response = await client.post(
+                    cfg.matching_service_url + "/preferences",
+                    json=preferences_data
+                )
+                if matching_response.status_code not in (200, 201):
+                    logging.warning(
+                        f"Не удалось создать предпочтения: {matching_response.status_code} {matching_response.text}")
+            except Exception as e:
+                logging.error(f"Ошибка при создании предпочтения: {e}")
+
+            if response.status_code not in (200, 201):
+                await message.answer(f"❌ Произошла ошибка при создании анкеты: {response.status_code} {response.text}")
+                return
+
+            await message.answer(
+                "✅ Ваша анкета успешно создана! Можете начать просмотр других анкет командой /view")
+            await state.clear()
     except httpx.RequestError as e:
         await message.answer(f"❌ Ошибка сети при создании анкеты: {e}")
     except Exception as e:
@@ -420,9 +473,3 @@ async def get_photo(message: types.Message):
     print(message.photo[-1].file_id)
 
 
-def get_my_profile_keyboard():
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
-            [InlineKeyboardButton(text='Заполнить заново', callback_data='my_profile-reset')]
-        ]
-    )

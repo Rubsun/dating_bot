@@ -9,3 +9,5 @@ class ProfileCreationStates(StatesGroup):
     waiting_for_gender = State()
     waiting_for_city = State()
     waiting_for_photo = State()
+    waiting_for_gender_preference = State()
+    waiting_for_age_preference = State()
