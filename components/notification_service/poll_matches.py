@@ -3,19 +3,65 @@ import aio_pika
 import msgpack
 from aio_pika import IncomingMessage, ExchangeType
 from aiogram import Bot
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+import httpx
 
 from components.notification_service.config import Config
 from components.notification_service.di import setup_di
 
+DEFAULT_PROFILE_PHOTO_ID = "AgACAgIAAxkBAAPTaAz10wpbJ5qbrlZN8D9l857jUTUAAizuMRtF92hIMO4aSv2p4J8BAAMCAANtAAM2BA"
 
-async def send_telegram_message(user_id, text):
+
+async def send_match_messages(user1_id, user2_id):
     """Send a message via Telegram directly to the user ID."""
+    cfg = await container.get(Config)
     bot = await container.get(Bot)
+
+    async with httpx.AsyncClient() as client:
+        get_user1_task = asyncio.create_task(client.get(f"{cfg.profile_service_url}/profiles/{user1_id}"))
+        get_user2_task = asyncio.create_task(client.get(f"{cfg.profile_service_url}/profiles/{user2_id}"))
+
+        user1_resp, user2_resp = await asyncio.gather(get_user1_task, get_user2_task)
+        user1, user2 = user1_resp.json(), user2_resp.json()
+
+    text1 = (
+        f"Поздравляем, y вас мэтч!\n\n"
+        f"<b>{user2['first_name']} {user2.get('last_name', '')}, {user2['age']}</b>, {user2['city']}\n"
+        f"Пол: {'М' if user2['gender'] == 'male' else 'Ж'}\n\n"
+        f"{'О себе: ' + user2.get('bio') if user2.get('bio') != '' else 'Нет описания'}"
+    )
+    text2 = (
+        f"Поздравляем, y вас мэтч!\n\n"
+        f"<b>{user1['first_name']} {user1.get('last_name', '')}, {user1['age']}</b>, {user1['city']}\n"
+        f"Пол: {'М' if user1['gender'] == 'male' else 'Ж'}\n\n"
+        f"{'О себе: ' + user1.get('bio') if user1.get('bio') != '' else 'Нет описания'}"
+    )
     try:
-        await bot.send_message(chat_id=user_id, text=text)
-        print(f"Sent message to user {user_id}: {text}")
+        await bot.send_photo(
+            chat_id=user1_id,
+            photo=user2['photo_file_id'] if user2['photo_file_id'] != 'None' else DEFAULT_PROFILE_PHOTO_ID,
+            caption=text1,
+            parse_mode="HTML",
+            reply_markup=InlineKeyboardMarkup(
+                inline_keyboard=[
+                    [InlineKeyboardButton(text='Показать юзернейм', callback_data=f'show_username:{user2["tg_username"]}')],
+                ]
+            )
+        )
+        await bot.send_photo(
+            chat_id=user2_id,
+            photo=user1['photo_file_id'] if user1['photo_file_id'] != 'None' else DEFAULT_PROFILE_PHOTO_ID,
+            caption=text2,
+            parse_mode="HTML",
+            reply_markup=InlineKeyboardMarkup(
+                inline_keyboard=[
+                    [InlineKeyboardButton(text='Показать юзернейм',
+                                          callback_data=f'show_username:{user1["tg_username"]}')],
+                ]
+            )
+        )
     except Exception as e:
-        print(f"Error sending message to user {user_id}: {e}")
+        print(f"Error sending message to users {user1_id}, {user2_id}: {e}")
 
 
 async def process_match_message(message: IncomingMessage):
@@ -26,21 +72,13 @@ async def process_match_message(message: IncomingMessage):
             body = msgpack.unpackb(message.body)
             user1_id = body.get("user1_id")
             user2_id = body.get("user2_id")
-            user1_username = body.get("user1_username")
-            user2_username = body.get("user2_username")
             # match_date = body.get("match_date")
 
             # Validate the message fields
             if not all([user1_id, user2_id]):
                 raise ValueError("Message is missing required fields (user1_id, user2_id, match_date).")
 
-            # Create and send customized Telegram messages for both users
-            user1_message = f"Поздравляем! У вас матч с @{user2_username}!"
-            user2_message = f"Поздравляем! У вас матч с @{user1_username}!"
-
-            await send_telegram_message(user1_id, user1_message)
-            await send_telegram_message(user2_id, user2_message)
-
+            await send_match_messages(user1_id, user2_id)
         except Exception as e:
             print(f"Error processing message: {e}")
 

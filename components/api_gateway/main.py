@@ -1,8 +1,9 @@
 import asyncio
 import logging
+from redis.asyncio import Redis
 
 from aiogram import Bot, Dispatcher, types
-from aiogram.fsm.storage.memory import MemoryStorage
+from aiogram.fsm.storage.redis import RedisStorage
 from dishka.integrations.aiogram import (
     setup_dishka,
 )
@@ -22,6 +23,7 @@ async def start_polling():
     cfg = await container.get(Config)
 
     bot = Bot(token=cfg.bot.bot_token)
+    await bot.delete_webhook()
 
     await bot.set_my_commands(
         commands=[
@@ -31,7 +33,7 @@ async def start_polling():
         ]
     )
 
-    dp = Dispatcher(storage=MemoryStorage())  # TODO Redis
+    dp = Dispatcher(storage=RedisStorage(Redis.from_url(cfg.redis.uri)))
     setup_dishka(container=container, router=dp, auto_inject=True)
     dp.message.middleware(CheckUsernameMiddleware())
     dp.include_router(handler_router)

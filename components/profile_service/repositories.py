@@ -46,6 +46,11 @@ class ProfileRepository:
         result = await self.db.execute(select(Profile).where(Profile.id == profile_id))
         return result.scalars().first()
 
+    async def get_profiles_by_ids(self, ids: list[int]):
+        stmt = select(Profile).where(Profile.id.in_(ids))
+        result = await self.db.execute(stmt)
+        return result.scalars().all()
+
     async def delete_profile_by_id(self, profile_id: int) -> bool:
         """Delete a Profile by its ID."""
         result = await self.db.execute(select(Profile).where(Profile.id == profile_id))
@@ -58,4 +63,5 @@ class ProfileRepository:
         await self.db.delete(profile)
         await self.db.commit()
         return True
+
 

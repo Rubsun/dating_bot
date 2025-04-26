@@ -10,14 +10,14 @@ from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from dishka.integrations.aiogram import FromDishka
 
 from components.api_gateway.config import Config
+from components.api_gateway.utils import get_coordinates
 from components.api_gateway.controllers.bot.keyboards import gender_kb, remove_kb, skip_kb, get_my_profile_keyboard, \
     gender_preferences_kb
 from components.api_gateway.controllers.bot.states import ProfileCreationStates
-from components.api_gateway.controllers.utils import get_coordinates
 
 router = Router()
 
-DEFAULT_PROFILE_PHOTO_ID = "AgACAgIAAxkBAAInBWgKBbyXVV1FRr3Ox4s7AuynlXQVAAKO9DEbRd1RSCfD3X6lDdSLAQADAgADbQADNgQ"
+DEFAULT_PROFILE_PHOTO_ID = "AgACAgIAAxkBAAPTaAz10wpbJ5qbrlZN8D9l857jUTUAAizuMRtF92hIMO4aSv2p4J8BAAMCAANtAAM2BA"
 
 
 @router.message(CommandStart())
@@ -119,7 +119,7 @@ async def waiting_for_gender_preference(callback: types.CallbackQuery, state: FS
     preferred_gender = callback.data.split(':')[1]
     await state.update_data(preferred_gender=preferred_gender)
     await state.set_state(ProfileCreationStates.waiting_for_age_preference)
-    await callback.message.answer("Пришлите желаемый диапазон возраста в формате 'минмальный_возраст-максимальный_возраст (Пример: 18-35)'")
+    await callback.message.edit_text("Пришлите желаемый диапазон возраста в формате 'min_age-max_age (Пример: 18-35)'")
 
 
 @router.message(F.text, StateFilter(ProfileCreationStates.waiting_for_age_preference))
@@ -195,6 +195,8 @@ async def waiting_for_photo(message: types.Message, state: FSMContext, cfg: From
 
     preferences_data = {
         "telegram_id": profile_data['user_id'],
+        "age": profile_data['age'],
+        "gender": profile_data['gender'],
         "latitude": profile_data["latitude"],
         "longitude": profile_data["longitude"],
         "preferred_gender": profile_data["preferred_gender"],
@@ -202,12 +204,11 @@ async def waiting_for_photo(message: types.Message, state: FSMContext, cfg: From
         "preferred_max_age": profile_data["preferred_max_age"],
     }
 
-
     print('Trying to create profile...')
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
             form_data_str = {k: str(v) for k, v in new_profile_data.items()}
-            print('Form data1311114:', form_data_str)
+            print('Form data:', form_data_str)
 
             files = {}
             if photo_bytes:
@@ -238,7 +239,7 @@ async def waiting_for_photo(message: types.Message, state: FSMContext, cfg: From
 
             try:
                 matching_response = await client.post(
-                    cfg.matching_service_url + "/preferences",
+                    cfg.matching_service_url + "/users/info",
                     json=preferences_data
                 )
                 if matching_response.status_code not in (200, 201):
@@ -284,7 +285,7 @@ async def show_next_profile(message: types.Message, state: FSMContext, cfg: Conf
     current_user_id = message.chat.id
     data = await state.get_data()
 
-    next_profile_url = f"{cfg.profile_service_url}/next/{current_user_id}?offset={data.get('view_offset', 0)}"
+    next_profile_url = f"{cfg.matching_service_url}/match/next/{current_user_id}?offset={data.get('view_offset', 0)}"
 
     try:
         async with httpx.AsyncClient() as client:
@@ -390,7 +391,7 @@ async def process_rating_callback(callback: types.CallbackQuery, state: FSMConte
         if rating_response.status_code == 200:
             async with httpx.AsyncClient() as client:
                 matching_response = await client.post(
-                    f"{cfg.matching_service_url}/check",
+                    f"{cfg.matching_service_url}/match/check",
                     json={
                         "rater_user_id": current_user_id,
                         "rated_user_id": viewing_profile_id,
@@ -468,8 +469,11 @@ async def fill_profile_again(callback: types.CallbackQuery, state: FSMContext):
         parse_mode="HTML",
     )
 
+@router.callback_query(F.data.startswith("show_username"))
+async def show_username_in_match(callback: types.CallbackQuery):
+    username = callback.data.split(':')[1]
+    await callback.message.edit_caption(caption=callback.message.caption + f'\n\nНаписать: @{username}')
+
 @router.message(F.content_type == 'photo')
 async def get_photo(message: types.Message):
     print(message.photo[-1].file_id)
-
-
