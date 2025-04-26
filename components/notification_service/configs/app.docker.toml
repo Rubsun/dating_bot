@@ -6,3 +6,6 @@ host = "rabbitmq"
 port = 5672
 user = "guest"
 password = "guest"
+
+[celery]
+broker_url = 'redis://redis:6379/0'

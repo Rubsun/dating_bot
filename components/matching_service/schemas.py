@@ -16,4 +16,4 @@ class UserMatch(TypedDict):
     user2_id: int
     user1_username: str
     user2_username: str
-    # match_data: datetime
+    # match_date: datetime

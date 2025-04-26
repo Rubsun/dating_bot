@@ -89,6 +89,18 @@ class LikeMatchRepository:
             print(f"Взаимный лайк от пользователя {rated_user_id} не найден.")
             return False # Совпадения не произошло
 
+
+    async def get_next(self, viewer_id: int, offset: int = 0) -> Optional[Profile]:
+        """
+        Возвращает первую попавшуюся анкету, не совпадающую с viewer_id.
+        TODO: Добавить фильтрацию уже просмотренных анкет.
+        """
+        result = await self.db.execute(
+            select(Profile).where(Profile.id != viewer_id).offset(offset).limit(1)
+        )
+        return result.scalars().first()
+
+
     async def get_match(self, user1_id: int, user2_id: int) -> Match:
         user1 = min(user1_id, user2_id)
         user2 = max(user1_id, user2_id)

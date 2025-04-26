@@ -1,13 +1,15 @@
 import logging
 
 import httpx
-from aiogram import Router, F, Bot
+from aiogram import Router, F
 from aiogram import types
 from aiogram.filters import CommandStart, StateFilter, Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+from dishka.integrations.aiogram import FromDishka
 
+from components.api_gateway.config import Config
 from components.api_gateway.controllers.bot.keyboards import gender_kb, remove_kb, skip_kb
 from components.api_gateway.controllers.bot.states import ProfileCreationStates
 
@@ -17,13 +19,12 @@ DEFAULT_PROFILE_PHOTO_ID = "AgACAgIAAxkBAAInBWgKBbyXVV1FRr3Ox4s7AuynlXQVAAKO9DEb
 
 
 @router.message(CommandStart())
-async def start_cmd(message: types.Message, state: FSMContext, bot: Bot):
+async def start_cmd(message: types.Message, state: FSMContext, cfg: FromDishka[Config]):
     user_id = message.from_user.id
     first_name = message.from_user.first_name
 
     async with httpx.AsyncClient() as client:
-        profile_service_url = "http://localhost:8000/api/v1/profiles"
-        response = await client.get(f"{profile_service_url}/{user_id}")
+        response = await client.get(f"{cfg.profile_service_url}/{user_id}")
 
         if response.status_code == 404:
             await state.update_data(
@@ -105,7 +106,7 @@ async def waiting_for_city(message: types.Message, state: FSMContext):
     await message.answer("Пришлите фото для вашего профиля (или нажмите 'Пропустить')", reply_markup=skip_kb)
 
 @router.message(ProfileCreationStates.waiting_for_photo, F.photo | (F.text.lower() == "пропустить"))
-async def waiting_for_photo(message: types.Message, state: FSMContext):
+async def waiting_for_photo(message: types.Message, state: FSMContext, cfg: FromDishka[Config]):
     profile_data = await state.get_data()
     print('cosn:', profile_data)
 
@@ -137,9 +138,8 @@ async def waiting_for_photo(message: types.Message, state: FSMContext):
     if refill:
         logging.info("refill: %s. Deleting profile..", refill)
 
-        profile_service_url = "http://localhost:8000/api/v1/profiles"
         async with httpx.AsyncClient() as client:
-            response = await client.delete(f"{profile_service_url}/{profile_data['user_id']}")
+            response = await client.delete(f"{cfg.profile_service_url}/{profile_data['user_id']}")
             logging.info("Deletion status: %d; data: %s", response.status_code, response.json())
 
         await state.update_data(
@@ -159,7 +159,6 @@ async def waiting_for_photo(message: types.Message, state: FSMContext):
         "photo_file_id": photo_file_id
     }
 
-    profile_service_url = "http://localhost:8000/api/v1/profiles"
 
     print('Trying to create profile...')
     try:
@@ -173,18 +172,17 @@ async def waiting_for_photo(message: types.Message, state: FSMContext):
                 files["photo"] = ("profile_photo.jpg", photo_bytes, "image/jpeg")
 
             response = await client.post(
-                profile_service_url,
+                cfg.profile_service_url,
                 data=form_data_str,
                 files=files
             )
             print('Create profile resp:', response.json())
 
             if response.status_code in (200, 201):
-                rating_service_url = "http://localhost:8001/api/v1/ratings"
                 try:
                     async with httpx.AsyncClient() as rating_client:
                         rating_response = await rating_client.post(
-                            rating_service_url,
+                            cfg.rating_service_url,
                             json=payload_data
                         )
                         if rating_response.status_code not in (200, 201):
@@ -229,12 +227,11 @@ def get_rating_keyboard() -> InlineKeyboardMarkup:
 
 
 
-async def show_next_profile(message: types.Message, state: FSMContext):
+async def show_next_profile(message: types.Message, state: FSMContext, cfg: Config):
     current_user_id = message.chat.id
     data = await state.get_data()
 
-    profile_service_url = "http://localhost:8000/api/v1/profiles"
-    next_profile_url = f"{profile_service_url}/next/{current_user_id}?offset={data.get('view_offset', 0)}"
+    next_profile_url = f"{cfg.profile_service_url}/next/{current_user_id}?offset={data.get('view_offset', 0)}"
 
     try:
         async with httpx.AsyncClient() as client:
@@ -290,13 +287,12 @@ async def show_next_profile(message: types.Message, state: FSMContext):
 
 
 @router.message(Command("view"), StateFilter(None))
-async def view_profiles_command(message: types.Message, state: FSMContext):
+async def view_profiles_command(message: types.Message, state: FSMContext, cfg: FromDishka[Config]):
     async with httpx.AsyncClient() as client:
-        profile_service_url = "http://localhost:8000/api/v1/profiles"
-        response = await client.get(f"{profile_service_url}/{message.from_user.id}")
+        response = await client.get(f"{cfg.profile_service_url}/{message.from_user.id}")
         if response.status_code == 200:
             await message.answer("Начинаем просмотр анкет...")
-            await show_next_profile(message, state)
+            await show_next_profile(message, state, cfg)
         elif response.status_code == 404:
             await message.answer("Сначала вам нужно создать свою анкету. Введите /start")
         else:
@@ -305,7 +301,7 @@ async def view_profiles_command(message: types.Message, state: FSMContext):
 
 
 @router.callback_query(StateFilter(ViewingStates.viewing), F.data.startswith("rate:"))
-async def process_rating_callback(callback: types.CallbackQuery, state: FSMContext):
+async def process_rating_callback(callback: types.CallbackQuery, state: FSMContext, cfg: FromDishka[Config]):
     action = callback.data.split(":")[1]
     current_user_id = callback.from_user.id
     state_data = await state.get_data()
@@ -326,9 +322,6 @@ async def process_rating_callback(callback: types.CallbackQuery, state: FSMConte
         await callback.answer()
         return
 
-    rating_service_url = "http://localhost:8001/api/v1/ratings"
-    matching_service_url = "http://localhost:8002/api/v1/match/like"
-
     payload = {
         "rater_user_id": current_user_id,
         "rated_user_id": viewing_profile_id
@@ -337,14 +330,14 @@ async def process_rating_callback(callback: types.CallbackQuery, state: FSMConte
     try:
         async with httpx.AsyncClient() as client:
             rating_response = await client.post(
-                f"{rating_service_url}/{action}",
+                f"{cfg.rating_service_url}/{action}",
                 json=payload
             )
 
         if rating_response.status_code == 200:
             async with httpx.AsyncClient() as client:
                 matching_response = await client.post(
-                    f"{matching_service_url}",
+                    f"{cfg.matching_service_url}/check",
                     json={
                         "rater_user_id": current_user_id,
                         "rated_user_id": viewing_profile_id,
@@ -360,7 +353,7 @@ async def process_rating_callback(callback: types.CallbackQuery, state: FSMConte
             else:
                 print('Error:', matching_response.json())
             # Показать следующую анкету
-            await show_next_profile(callback.message, state)
+            await show_next_profile(callback.message, state, cfg)
         else:
             await callback.answer(f"Ошибка при отправке оценки: {rating_response.status_code}", show_alert=True)
             await callback.message.answer("Не удалось обработать ваш голос. Попробуйте позже.")
@@ -377,10 +370,9 @@ async def process_rating_callback(callback: types.CallbackQuery, state: FSMConte
 
 
 @router.message(Command("profile"), StateFilter(None))
-async def get_my_profile(message: types.Message, state: FSMContext):
+async def get_my_profile(message: types.Message, cfg: FromDishka[Config]):
     async with httpx.AsyncClient() as client:
-        profile_service_url = "http://localhost:8000/api/v1/profiles"
-        response = await client.get(f"{profile_service_url}/{message.from_user.id}")
+        response = await client.get(f"{cfg.profile_service_url}/{message.from_user.id}")
 
         if response.status_code == 200:
             profile_data = response.json()
@@ -424,7 +416,7 @@ async def fill_profile_again(callback: types.CallbackQuery, state: FSMContext):
     )
 
 @router.message(F.content_type == 'photo')
-async def get_photo(message: types.Message, state: FSMContext):
+async def get_photo(message: types.Message):
     print(message.photo[-1].file_id)
 
 

@@ -3,6 +3,9 @@ import logging
 
 from aiogram import Bot, Dispatcher, types
 from aiogram.fsm.storage.memory import MemoryStorage
+from dishka.integrations.aiogram import (
+    setup_dishka,
+)
 
 from components.api_gateway.config import Config
 from components.api_gateway.controllers.bot.handlers import router as handler_router
@@ -29,6 +32,7 @@ async def start_polling():
     )
 
     dp = Dispatcher(storage=MemoryStorage())  # TODO Redis
+    setup_dishka(container=container, router=dp, auto_inject=True)
     dp.message.middleware(CheckUsernameMiddleware())
     dp.include_router(handler_router)
 

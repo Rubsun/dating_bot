@@ -1,2 +1,6 @@
+profile_service_url = "http://profile_service:8000/api/v1/profiles"
+rating_service_url = "http://rating_service:8001/api/v1/ratings"
+matching_service_url = "http://matching_service:8002/api/v1/match"
+
 [bot]
 bot_token = "7530248180:AAEliB4WmUcLKeVllNCphmAhYZr9U3w6478"

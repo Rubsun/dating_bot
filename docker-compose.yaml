@@ -50,7 +50,7 @@ services:
     container_name: "dating_bot-notification_service"
     environment:
       NOTIFICATION_SERVICE_CONFIG_PATH: "./components/notification_service/configs/app.docker.toml"
-    command: uv run python -m components.notification_service.main
+    command: uv run python -m components.notification_service.poll_matches
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -94,16 +94,16 @@ services:
       retries: 5
     restart: always
 
-#  redis:
-#    image: redis:7.2.4-alpine
-#    container_name: "dating_bot-redis"
-#    ports:
-#      - "127.0.0.1:6379:6379"
-#    restart: "unless-stopped"
-#    volumes:
-#      - "./configs/:/usr/local/etc/redis"
-#      - redis_data:/data
-#    command: "redis-server /usr/local/etc/redis/redis.conf"
+  redis:
+    image: redis:7.2.4-alpine
+    container_name: "dating_bot-redis"
+    ports:
+      - "127.0.0.1:6379:6379"
+    restart: "unless-stopped"
+    volumes:
+      - "./configs/:/usr/local/etc/redis"
+      - redis_data:/data
+    command: "redis-server /usr/local/etc/redis/redis.conf"
 
   s3:
     image: minio/minio:latest
@@ -162,5 +162,4 @@ services:
 
 volumes:
   postgres_data:
-
-#  redis_data:
+  redis_data:

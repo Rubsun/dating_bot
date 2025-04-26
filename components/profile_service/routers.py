@@ -101,28 +101,3 @@ async def delete_profile(profile_id: int, profile_repo: FromDishka[ProfileReposi
             status_code=404, detail=f"Profile with ID {profile_id} not found"
         )
     return {"message": f"Profile with ID {profile_id} was successfully deleted"}
-
-
-@router.get("/profiles/next/{viewer_id}")
-async def get_next_profile_to_view(
-        viewer_id: int,
-        profile_repo: FromDishka[ProfileRepository],
-        offset: int = 0,
-):
-    profile = await profile_repo.get_next_profile(viewer_id=viewer_id, offset=offset)
-
-    if not profile:
-        raise HTTPException(status_code=404, detail="No more profiles to view")
-
-    return {
-        "user_id": profile.id,
-        "first_name": profile.first_name,
-        "last_name": profile.last_name,
-        "tg_username": profile.tg_username,
-        "bio": profile.bio,
-        "age": profile.age,
-        "gender": profile.gender,
-        "city": profile.city,
-        "photo_path": profile.photo_path,
-        "photo_file_id": profile.photo_file_id
-    }

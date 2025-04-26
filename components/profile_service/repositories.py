@@ -59,12 +59,3 @@ class ProfileRepository:
         await self.db.commit()
         return True
 
-    async def get_next_profile(self, viewer_id: int, offset: int = 0) -> Optional[Profile]:
-        """
-        Возвращает первую попавшуюся анкету, не совпадающую с viewer_id.
-        TODO: Добавить фильтрацию уже просмотренных анкет.
-        """
-        result = await self.db.execute(
-            select(Profile).where(Profile.id != viewer_id).offset(offset).limit(1)
-        )
-        return result.scalars().first()

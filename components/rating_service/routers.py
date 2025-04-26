@@ -24,7 +24,6 @@ async def create_rating(
 
     rating = await service.init_rating(rating_data)
 
-
     profile_rating = await rating_repo.create_rating(
         profile_telegram_id=rating_data.telegram_id,
         rating_score=rating

@@ -22,9 +22,15 @@ class BotConfig:
 
 
 @dataclass
+class CeleryConfig:
+    broker_url: str
+
+
+@dataclass
 class Config:
     rabbitmq: RMQConfig
     bot: BotConfig
+    celery: CeleryConfig
 
 
 def load_config(config_path: str) -> Config:
@@ -33,4 +39,5 @@ def load_config(config_path: str) -> Config:
     return Config(
         rabbitmq=RMQConfig(**data["rmq"]),
         bot=BotConfig(**data["bot"]),
+        celery=CeleryConfig(**data["celery"]),
     )

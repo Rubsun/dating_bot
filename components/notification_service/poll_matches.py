@@ -1,9 +1,8 @@
 import asyncio
 import aio_pika
 import msgpack
-from aio_pika import connect, IncomingMessage, ExchangeType
+from aio_pika import IncomingMessage, ExchangeType
 from aiogram import Bot
-import json
 
 from components.notification_service.config import Config
 from components.notification_service.di import setup_di
@@ -19,7 +18,7 @@ async def send_telegram_message(user_id, text):
         print(f"Error sending message to user {user_id}: {e}")
 
 
-async def process_message(message: IncomingMessage):
+async def process_match_message(message: IncomingMessage):
     """Process messages received from the RabbitMQ queue."""
     async with message.process():
         try:
@@ -52,16 +51,16 @@ async def main():
     connection = await aio_pika.connect_robust(cfg.rabbitmq.uri)
     async with connection:
         channel = await connection.channel()
-        exchange = await channel.declare_exchange("matches", ExchangeType.DIRECT)
 
         # Declare the "matches" queue
+        exchange = await channel.declare_exchange("matches", ExchangeType.DIRECT)
         queue = await channel.declare_queue("matches")
 
         # Bind the queue to the default exchange
         await queue.bind(exchange)
 
         print('Consuming queue..')
-        await queue.consume(process_message)
+        await queue.consume(process_match_message)
         await asyncio.Future()
 
 
