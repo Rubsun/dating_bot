@@ -114,7 +114,7 @@ async def waiting_for_city(message: types.Message, state: FSMContext):
 
 
 @router.callback_query(F.data.startswith("gender_pref"),
-                       StateFilter(ProfileCreationStates.waiting_for_gender))
+                       StateFilter(ProfileCreationStates.waiting_for_gender_preference))
 async def waiting_for_gender_preference(callback: types.CallbackQuery, state: FSMContext):
     preferred_gender = callback.data.split(':')[1]
     await state.update_data(preferred_gender=preferred_gender)
