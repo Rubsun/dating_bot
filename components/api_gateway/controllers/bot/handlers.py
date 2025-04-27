@@ -11,22 +11,60 @@ from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from dishka.integrations.aiogram import FromDishka
 
 from components.api_gateway.config import Config
+from components.api_gateway.utils import get_coordinates, get_city
 from components.api_gateway.controllers.bot.keyboards import gender_kb, remove_kb, skip_kb, get_my_profile_keyboard, \
     gender_preferences_kb
 from components.api_gateway.controllers.bot.states import ProfileCreationStates
-from components.api_gateway.utils import get_coordinates, get_city
+from aiogram.filters import CommandStart, CommandObject
+from aiogram.utils.deep_linking import decode_payload
+from aiogram.utils.deep_linking import create_start_link
+
+
 
 router = Router()
 
 DEFAULT_PROFILE_PHOTO_ID = "AgACAgIAAxkBAAIpy2gOLYwOGoWgBhymvzTjr4MasfX9AALr9DEbtbBwSFJvJSQQAAFu3gEAAwIAA20AAzYE"
 
 
-@router.message(CommandStart())
+@router.message(CommandStart(deep_link=True))
+async def handler(message: types.Message, command: CommandObject, state: FSMContext, cfg: FromDishka[Config]):
+    user_id = message.from_user.id
+    first_name = message.from_user.first_name
+
+    await state.set_state(None)
+
+    args = command.args
+    inviter_id = decode_payload(args)
+
+    async with httpx.AsyncClient() as client:
+        response = await client.get(f"{cfg.profile_service_url}/profiles/{user_id}")
+
+        if response.status_code == 404:
+            await state.update_data(
+                user_id=user_id,
+            )
+            await state.set_state(ProfileCreationStates.waiting_for_first_name)
+            await message.answer(
+                f"Привет, {first_name}! 👋 Добро пожаловать в Дэйтинг Бот!\n"
+                "Чтобы другие могли тебя найти, давай создадим твою анкету.\n\n"
+                "📝 <b>Как тебя зовут</b> (Это имя будут видеть другие пользователи)",
+                parse_mode="HTML",
+            )
+            send_somewhere(inviter_id)
+
+        elif response.status_code == 200:
+            await message.answer(
+                "Ваша анкета активна. Можете посмотреть свою анкету командой /profile или начать просмотр других анкет командой /view")
+        else:
+            await message.answer(f"Произошла ошибка при проверке профиля: {response.status_code}")
+
+
+@router.message(CommandStart(deep_link=False))
 async def start_cmd(message: types.Message, state: FSMContext, cfg: FromDishka[Config]):
     user_id = message.from_user.id
     first_name = message.from_user.first_name
 
-    await state.clear()
+    await state.set_state(None)
 
     async with httpx.AsyncClient() as client:
         response = await client.get(f"{cfg.profile_service_url}/profiles/{user_id}")
@@ -43,10 +81,20 @@ async def start_cmd(message: types.Message, state: FSMContext, cfg: FromDishka[C
                 parse_mode="HTML",
             )
         elif response.status_code == 200:
-            await message.answer(
-                "Ваша анкета активна. Можете посмотреть свою анкету командой /profile или начать просмотр других анкет командой /view")
+            await message.answer("Ваша анкета активна. Можете посмотреть свою анкету командой /profile или начать просмотр других анкет командой /view")
         else:
             await message.answer(f"Произошла ошибка при проверке профиля: {response.status_code}")
+
+
+@router.message(Command('referral'))
+async def get_ref_link(message: types.Message, bot: Bot, cfg: FromDishka[Config]):
+    async with httpx.AsyncClient() as client:
+        response = await client.get(f"{cfg.profile_service_url}/profiles/{message.from_user.id}")
+        if response.status_code == 200:
+            link = await create_start_link(bot, str(message.from_user.id), encode=True)
+            await message.answer(f"Ваша реферальная ссылка: {link}. Отправьте другу, чтобы повысить свой рейтинг :)")
+        elif response.status_code == 404:
+            await message.answer("Сначала вам нужно создать свою анкету. Введите /start")
 
 
 @router.message(ProfileCreationStates.waiting_for_first_name)
@@ -54,7 +102,7 @@ async def waiting_for_first_name(message: types.Message, state: FSMContext):
     first_name = message.text
     await state.update_data(first_name=first_name)
     await state.set_state(ProfileCreationStates.waiting_for_last_name)
-    await message.answer("Теперь введи свою фамилию")
+    await message.answer(f"Теперь введи свою фамилию")
 
 
 @router.message(ProfileCreationStates.waiting_for_last_name)
@@ -106,8 +154,9 @@ async def select_gender(callback: types.CallbackQuery, state: FSMContext, bot: B
     ))
 
 
+
 @router.message(ProfileCreationStates.waiting_for_city, F.content_type == 'location')
-async def handle_user_location(message: types.Message, state: FSMContext, bot: Bot):
+async def handle_user_location(message: types.Message,  state: FSMContext, bot: Bot):
     lat = message.location.latitude
     lon = message.location.longitude
 
@@ -167,15 +216,27 @@ async def waiting_for_age_preference(message: types.Message, state: FSMContext):
     await message.answer("Пришлите фото для вашего профиля (или нажмите 'Пропустить')", reply_markup=skip_kb)
 
 
-@router.message(ProfileCreationStates.waiting_for_photo, F.photo | (F.text.lower() == "пропустить"))
-async def waiting_for_photo(message: types.Message, state: FSMContext, cfg: FromDishka[Config]):
+
+@router.message(ProfileCreationStates.waiting_for_photo, F.photo | F.media_group_id | (F.text.lower() == "пропустить"))
+async def waiting_for_photo(message: types.Message, state: FSMContext, cfg: FromDishka[Config], media_group: list[types.PhotoSize] | None = None):
     profile_data = await state.get_data()
     print('cosn:', profile_data)
 
-    photo_bytes = None
-    photo_file_id = None
+    photo_file_ids = []
+    photo_file_bytes = []
 
-    if message.photo:
+    print(media_group)
+    if media_group:
+        logging.info('if media_group')
+        for photo in media_group:
+            photo_file_ids.append(photo.file_id)
+
+            file_info = await message.bot.get_file(photo.file_id)
+            file = await message.bot.download_file(file_info.file_path)
+            photo_bytes = file.read()
+            photo_file_bytes.append(photo_bytes)
+
+    elif message.photo:
         logging.info("Fimoz: %s, %s", message.photo, message.photo[-1])
         logging.info('if message.photo')
         photo = message.photo[-1]
@@ -183,16 +244,19 @@ async def waiting_for_photo(message: types.Message, state: FSMContext, cfg: From
         file_info = await message.bot.get_file(photo.file_id)
         file = await message.bot.download_file(file_info.file_path)
         photo_bytes = file.read()
+
+        photo_file_ids.append(photo_file_id)
+        photo_file_bytes.append(photo_bytes)
+
     elif message.text and message.text.strip().lower() == "пропустить":
         logging.info('if message.text')
-        photo_bytes = None
     else:
-        await message.answer("Пожалуйста, отправьте фотографию или нажмите 'Пропустить'")
+        await message.answer("Пожалуйста, отправьте фотографию/и или нажмите 'Пропустить'")
         return
 
-    if photo_file_id:
-        logging.info(f"file id: {photo_file_id}")
-        await state.update_data(photo_file_id=photo_file_id)
+    if len(photo_file_ids) > 0:
+        logging.info(f"file ids: {photo_file_ids}")
+        await state.update_data(photo_file_ids=photo_file_ids)
 
     await message.answer("Сохраняем вашу анкету...", reply_markup=remove_kb)
 
@@ -205,10 +269,10 @@ async def waiting_for_photo(message: types.Message, state: FSMContext, cfg: From
         "age": profile_data["age"],
         "gender": profile_data["gender"],
         "city": profile_data['city'],
-        "photo_file_id": photo_file_id
+        "photo_file_ids": photo_file_ids
     }
 
-    preferences_data = {
+    new_preferences_data = {
         "user_id": profile_data['user_id'],
         "age": profile_data['age'],
         "gender": profile_data['gender'],
@@ -237,9 +301,11 @@ async def waiting_for_photo(message: types.Message, state: FSMContext, cfg: From
             form_data_str = {k: str(v) for k, v in new_profile_data.items()}
             print('Form data:', form_data_str)
 
-            files = {}
-            if photo_bytes:
-                files["photo"] = ("profile_photo.jpg", photo_bytes, "image/jpeg")
+            files = []
+            if len(photo_file_bytes) > 0:
+                for i, photo_bytes in enumerate(photo_file_bytes):
+                    # Each file is a tuple: (field_name, (filename, content, content_type))
+                    files.append(("photos", (f"profile_photo_{i + 1}.jpg", photo_bytes, "image/jpeg")))
 
             response = await client.post(
                 cfg.profile_service_url + '/profiles',
@@ -266,25 +332,26 @@ async def waiting_for_photo(message: types.Message, state: FSMContext, cfg: From
                     )
 
                 rating_info = rating_response.json()
-                preferences_data["rating"] = rating_info["rating_score"]
+                new_preferences_data["rating"] = rating_info["rating_score"]
+
                 if rating_response.status_code not in (200, 201):
                     logging.warning(
-                        f"Не удалось создать рейтинг: {rating_response.status_code} {rating_response.text}")
+                            f"Не удалось создать рейтинг: {rating_response.status_code} {rating_response.text}")
             except Exception as e:
                 logging.error(f"Ошибка при создании рейтинга: {e}")
 
             try:
                 if refill:
-                    user_id = preferences_data['user_id']
-                    del preferences_data['user_id']
+                    user_id = new_preferences_data['user_id']
+                    del new_preferences_data['user_id']
                     matching_response = await client.put(
                         cfg.matching_service_url + f"/users/info/{user_id}",
-                        json=preferences_data
+                        json=new_preferences_data
                     )
                 else:
                     matching_response = await client.post(
                         cfg.matching_service_url + "/users/info",
-                        json=preferences_data
+                        json=new_preferences_data
                     )
 
                 if matching_response.status_code not in (200, 201):
@@ -307,6 +374,7 @@ async def waiting_for_photo(message: types.Message, state: FSMContext, cfg: From
         await state.clear()
 
 
+
 class ViewingStates(StatesGroup):
     viewing = State()
 
@@ -322,6 +390,7 @@ def get_rating_keyboard() -> InlineKeyboardMarkup:
         ]
     ]
     return InlineKeyboardMarkup(inline_keyboard=buttons)
+
 
 
 async def load_suitable_profiles(message: types.Message, offset: int, cfg: Config):
@@ -341,6 +410,7 @@ async def load_suitable_profiles(message: types.Message, offset: int, cfg: Confi
 
 
 async def show_next_profile(message: types.Message, state: FSMContext, cfg: Config):
+    current_user_id = message.chat.id
     data = await state.get_data()
 
     try:
@@ -349,10 +419,9 @@ async def show_next_profile(message: types.Message, state: FSMContext, cfg: Conf
         offset = data.get('matched_profiles_offset', 0)
         viewing_profile_idx = data.get('viewing_profile_idx')
 
-        print(profiles_data, last_loaded, offset, viewing_profile_idx)
+        print(profiles_data, last_loaded, offset,viewing_profile_idx)
 
-        if (profiles_data is None) or (last_loaded is not None and (
-                datetime.now() - datetime.fromisoformat(last_loaded) > timedelta(minutes=1))):
+        if (profiles_data is None) or (last_loaded is not None and (datetime.now() - datetime.fromisoformat(last_loaded) > timedelta(minutes=1))):
             profiles_data = await load_suitable_profiles(message, offset, cfg)
             if len(profiles_data) == 0:
                 await state.clear()
@@ -390,14 +459,34 @@ async def show_next_profile(message: types.Message, state: FSMContext, cfg: Conf
 
         keyboard = get_rating_keyboard()
 
-        if current_profile.get('photo_file_id') and current_profile.get('photo_file_id') != "None":
-            logging.info(current_profile['photo_file_id'])
-            await message.answer_photo(
-                photo=current_profile['photo_file_id'],
-                caption=caption,
-                parse_mode="HTML",
+        photo_file_ids = current_profile.get('photo_file_ids')
+        if photo_file_ids and photo_file_ids != "None":
+            logging.info(current_profile['photo_file_ids'])
+
+            if len(photo_file_ids) == 1:
+                await message.answer_photo(
+                    photo=current_profile['photo_file_ids'][0],
+                    caption=caption,
+                    parse_mode="HTML",
+                    reply_markup=keyboard
+                )
+                return
+
+            await message.answer_media_group(
+                media=[
+                    types.input_media_photo.InputMediaPhoto(
+                        media=photo_id,
+                        caption=caption if (i == len(photo_file_ids) - 1) else None,
+                        parse_mode="HTML" if (i == len(photo_file_ids) - 1) else None,
+                    )
+                    for i, photo_id in enumerate(photo_file_ids)
+                ],
+            )
+            await message.answer(
+                "Меню",
                 reply_markup=keyboard
             )
+
         else:
             await message.answer_photo(
                 photo=DEFAULT_PROFILE_PHOTO_ID,
@@ -411,6 +500,7 @@ async def show_next_profile(message: types.Message, state: FSMContext, cfg: Conf
                              reply_markup=remove_kb)
 
 
+
 @router.message(Command("view"), StateFilter(None))
 async def view_profiles_command(message: types.Message, state: FSMContext, cfg: FromDishka[Config]):
     async with httpx.AsyncClient() as client:
@@ -422,6 +512,7 @@ async def view_profiles_command(message: types.Message, state: FSMContext, cfg: 
             await message.answer("Сначала вам нужно создать свою анкету. Введите /start")
         else:
             await message.answer(f"Не удалось проверить вашу анкету. Ошибка: {response.status_code}")
+
 
 
 @router.callback_query(StateFilter(ViewingStates.viewing), F.data.startswith("rate:"))
@@ -497,7 +588,7 @@ async def process_rating_callback(callback: types.CallbackQuery, state: FSMConte
 
 
 @router.message(Command("profile"), StateFilter(None))
-async def get_my_profile(message: types.Message, cfg: FromDishka[Config]):
+async def get_my_profile(message: types.Message, bot: Bot, cfg: FromDishka[Config]):
     async with httpx.AsyncClient() as client:
         response = await client.get(f"{cfg.profile_service_url}/profiles/{message.from_user.id}")
 
@@ -510,13 +601,30 @@ async def get_my_profile(message: types.Message, cfg: FromDishka[Config]):
             )
             keyboard = get_my_profile_keyboard()
 
-            if profile_data.get('photo_file_id') and profile_data.get('photo_file_id') != "None":
-                await message.answer_photo(
-                    photo=profile_data['photo_file_id'],
-                    caption=caption,
-                    parse_mode="HTML",
-                    reply_markup=keyboard
+            photo_file_ids = profile_data.get('photo_file_ids')
+            if photo_file_ids and photo_file_ids != "None":
+                logging.info(profile_data['photo_file_ids'])
+
+                if len(photo_file_ids) == 1:
+                    await message.answer_photo(
+                        photo=profile_data['photo_file_ids'][0],
+                        caption=caption,
+                        parse_mode="HTML",
+                        reply_markup=keyboard
+                    )
+                    return
+
+                await message.answer_media_group(
+                    media=[
+                        types.input_media_photo.InputMediaPhoto(
+                            media=photo_id,
+                            caption=caption if (i == len(photo_file_ids) - 1) else None,
+                            parse_mode="HTML" if (i == len(photo_file_ids) - 1) else None,
+                        )
+                        for i, photo_id in enumerate(photo_file_ids)
+                    ],
                 )
+                await bot.send_message(message.from_user.id, 'Меню', reply_markup=keyboard)
             else:
                 await message.answer_photo(
                     photo=DEFAULT_PROFILE_PHOTO_ID,
@@ -542,7 +650,6 @@ async def fill_profile_again(callback: types.CallbackQuery, state: FSMContext):
         parse_mode="HTML",
     )
 
-
 @router.callback_query(F.data == 'my_profile-delete')
 async def fill_profile_again(callback: types.CallbackQuery, state: FSMContext, cfg: FromDishka[Config]):
     async with httpx.AsyncClient() as client:
@@ -553,16 +660,20 @@ async def fill_profile_again(callback: types.CallbackQuery, state: FSMContext, c
             return
 
     await state.clear()
+
+    await callback.message.edit_reply_markup(reply_markup=None)
     await callback.message.answer(
         "Вы удалили свою анкету. Если захотите заполнить снова, нажмите /start",
         parse_mode="HTML",
     )
 
-
 @router.callback_query(F.data.startswith("show_username"))
 async def show_username_in_match(callback: types.CallbackQuery):
     username = callback.data.split(':')[1]
-    await callback.message.edit_caption(caption=callback.message.caption + f'\n\nНаписать: @{username}')
+    if callback.message.caption:
+        await callback.message.edit_caption(caption=callback.message.caption + f'\n\nНаписать: @{username}')
+        return
+    await callback.message.edit_text(text=callback.message.text + f'\n\nНаписать: @{username}')
 
 
 @router.message(F.content_type == 'photo')

@@ -1,11 +1,10 @@
 import asyncio
-
 import aio_pika
-import httpx
 import msgpack
 from aio_pika import IncomingMessage, ExchangeType
-from aiogram import Bot
+from aiogram import Bot, types
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+import httpx
 
 from components.notification_service.config import Config, DEFAULT_PROFILE_PHOTO_ID
 from components.notification_service.di import setup_di
@@ -23,43 +22,49 @@ async def send_match_messages(user1_id, user2_id):
         user1_resp, user2_resp = await asyncio.gather(get_user1_task, get_user2_task)
         user1, user2 = user1_resp.json(), user2_resp.json()
 
-    text1 = (
-        f"🎉Поздравляем, y вас мэтч!\n\n"
-        f"<b>{user2['first_name']} {user2.get('last_name', '')}, {user2['age']}</b>, {user2['city']}\n"
-        f"Пол: {'М' if user2['gender'] == 'male' else 'Ж'}\n\n"
-        f"{'О себе: ' + user2.get('bio') if user2.get('bio') != '' else 'Нет описания'}"
-    )
-    text2 = (
-        f"🎉Поздравляем, y вас мэтч!\n\n"
-        f"<b>{user1['first_name']} {user1.get('last_name', '')}, {user1['age']}</b>, {user1['city']}\n"
-        f"Пол: {'М' if user1['gender'] == 'male' else 'Ж'}\n\n"
-        f"{'О себе: ' + user1.get('bio') if user1.get('bio') != '' else 'Нет описания'}"
-    )
     try:
-        await bot.send_photo(
-            chat_id=user1_id,
-            photo=user2['photo_file_id'] if user2['photo_file_id'] != 'None' else DEFAULT_PROFILE_PHOTO_ID,
-            caption=text1,
-            parse_mode="HTML",
-            reply_markup=InlineKeyboardMarkup(
-                inline_keyboard=[
-                    [InlineKeyboardButton(text='Показать юзернейм',
-                                          callback_data=f'show_username:{user2["tg_username"]}')],
-                ]
+        for user, user_id in zip([user1, user2], [user2_id, user1_id]):
+            text = (
+                f"🎉Поздравляем, y вас мэтч!\n\n"
+                f"<b>{user['first_name']} {user.get('last_name', '')}, {user['age']}</b>, {user['city']}\n"
+                f"Пол: {'М' if user['gender'] == 'male' else 'Ж'}\n\n"
+                f"{'О себе: ' + user.get('bio') if user.get('bio') != '' else 'Нет описания'}"
             )
-        )
-        await bot.send_photo(
-            chat_id=user2_id,
-            photo=user1['photo_file_id'] if user1['photo_file_id'] != 'None' else DEFAULT_PROFILE_PHOTO_ID,
-            caption=text2,
-            parse_mode="HTML",
-            reply_markup=InlineKeyboardMarkup(
-                inline_keyboard=[
-                    [InlineKeyboardButton(text='Показать юзернейм',
-                                          callback_data=f'show_username:{user1["tg_username"]}')],
-                ]
-            )
-        )
+            user_profile_photos = user['photo_file_ids']
+
+            if user_profile_photos in ('None', None) or len(user_profile_photos) == 1:
+                await bot.send_photo(
+                    chat_id=user_id,
+                    photo=user['photo_file_ids'] if user_profile_photos in (
+                    'None', None) else DEFAULT_PROFILE_PHOTO_ID,
+                    caption=text,
+                    parse_mode="HTML",
+                    reply_markup=InlineKeyboardMarkup(
+                        inline_keyboard=[
+                            [InlineKeyboardButton(text='Показать юзернейм',
+                                                  callback_data=f'show_username:{user["tg_username"]}')],
+                        ]
+                    )
+                )
+            else:
+                await bot.send_media_group(
+                    chat_id=user_id,
+                    media=[
+                        types.input_media_photo.InputMediaPhoto(
+                            media=photo_id,
+                            caption=text if (i == len(user_profile_photos) - 1) else None,
+                            parse_mode="HTML" if (i == len(user_profile_photos) - 1) else None,
+                        )
+                        for i, photo_id in enumerate(user_profile_photos)
+                    ],
+                )
+                await bot.send_message(chat_id=user_id, text='Меню', reply_markup=InlineKeyboardMarkup(
+                    inline_keyboard=[
+                        [InlineKeyboardButton(text='Показать юзернейм',
+                                              callback_data=f'show_username:{user["tg_username"]}')],
+                    ]
+                ))
+
     except Exception as e:
         print(f"Error sending message to users {user1_id}, {user2_id}: {e}")
 

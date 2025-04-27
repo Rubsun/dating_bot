@@ -14,7 +14,7 @@ class ProfileInfoCreate(BaseModel):
         ..., example="Male", description="Allowed values: Male, Female, Other"
     )
     city: str = Field(..., example="New York")
-    photo_file_id: Optional[str] = Field(None, example="AgACAgUAAxkBAA...")
+    photo_file_ids: Optional[list[str]] = Field(None, example="AgACAgUAAxkBAA...")
 
 
 class ProfileInfoUpdate(BaseModel):
@@ -28,7 +28,7 @@ class ProfileInfoUpdate(BaseModel):
         ..., example="Male", description="Allowed values: Male, Female, Other"
     )
     city: str = Field(..., example="New York")
-    photo_file_id: Optional[str] = Field(None, example="AgACAgUAAxkBAA...")
+    photo_file_ids: Optional[list[str]] = Field(None, example="AgACAgUAAxkBAA...")
 
 
 class RatingBase(BaseModel):

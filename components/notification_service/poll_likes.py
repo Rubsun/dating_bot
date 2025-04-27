@@ -1,13 +1,14 @@
 import asyncio
 
-import aio_pika
-import httpx
 import msgpack
-from aio_pika.exchange import ExchangeType
-from aiogram import Bot
+from aiogram import Bot, types
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+import httpx
+
 from celery import Celery
 from celery.schedules import schedule
+import aio_pika
+from aio_pika.exchange import ExchangeType
 
 from components.notification_service.config import Config, DEFAULT_PROFILE_PHOTO_ID
 from components.notification_service.di import setup_di
@@ -33,7 +34,6 @@ def run_async(coro):
 
 
 container = setup_di()
-
 
 @app.task
 def minutely_poll_likes_task():
@@ -84,23 +84,44 @@ def minutely_poll_likes_task():
                         f"{'О себе: ' + liker_data.get('bio') if liker_data.get('bio') != '' else 'Нет описания'}"
                     )
 
-                    await bot.send_photo(
-                        chat_id=liked_id,
-                        photo=liker_data['photo_file_id'] if liker_data['photo_file_id'] != 'None' else DEFAULT_PROFILE_PHOTO_ID,
-                        caption=text,
-                        parse_mode="HTML",
-                        reply_markup=InlineKeyboardMarkup(
+                    print(liker_data['photo_file_ids'], type(liker_data['photo_file_ids']))
+
+                    liker_profile_photos = liker_data['photo_file_ids']
+                    if liker_profile_photos in ('None', None) or len(liker_profile_photos) == 1:
+                        await bot.send_photo(
+                            chat_id=liked_id,
+                            photo=liker_data['photo_file_ids'] if liker_profile_photos in ('None', None) else DEFAULT_PROFILE_PHOTO_ID,
+                            caption=text,
+                            parse_mode="HTML",
+                            reply_markup=InlineKeyboardMarkup(
+                                inline_keyboard=[
+                                    [InlineKeyboardButton(text='Показать юзернейм',
+                                                          callback_data=f'show_username:{liker_data["tg_username"]}')],
+                                ]
+                            )
+                        )
+                    else:
+                        await bot.send_media_group(
+                            chat_id=liked_id,
+                            media=[
+                                types.input_media_photo.InputMediaPhoto(
+                                    media=photo_id,
+                                    caption=text if (i == len(liker_profile_photos) - 1) else None,
+                                    parse_mode="HTML" if (i == len(liker_profile_photos) - 1) else None,
+                                )
+                                for i, photo_id in enumerate(liker_profile_photos)
+                            ],
+                        )
+                        await bot.send_message(chat_id=liked_id, text='Меню', reply_markup=InlineKeyboardMarkup(
                             inline_keyboard=[
                                 [InlineKeyboardButton(text='Показать юзернейм',
                                                       callback_data=f'show_username:{liker_data["tg_username"]}')],
                             ]
-                        )
-                    )
+                        ))
                     messages_processed += 1
                     # Stop after processing all initial messages
                     if messages_processed >= message_count:
                         break
 
             print("Finished processing all messages")
-
     return run_async(inner())
