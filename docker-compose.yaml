@@ -6,12 +6,15 @@ services:
     container_name: "dating_bot-profile_service"
     environment:
       PROFILE_SERVICE_CONFIG_PATH: "./components/profile_service/configs/app.docker.toml"
-    command: uv run uvicorn components.profile_service.main:app --port 8000 --host 0.0.0.0
+      LOG_LEVEL: "INFO"
+      LOG_FORMAT: "TEXT"
+    command: uv run uvicorn components.profile_service.main:app --port 8000 --host 0.0.0.0 
     ports:
       - "127.0.0.1:8000:8000"
     depends_on:
       db:
         condition: service_healthy
+    restart: unless-stopped
 
   rating_service:
     build:
@@ -20,12 +23,15 @@ services:
     container_name: "dating_bot-rating_service"
     environment:
       RATING_SERVICE_CONFIG_PATH: "./components/rating_service/configs/app.docker.toml"
+      LOG_LEVEL: "INFO"
+      LOG_FORMAT: "TEXT"
     command: uv run uvicorn components.rating_service.main:app --port 8001 --host 0.0.0.0
     ports:
       - "127.0.0.1:8001:8001"
     depends_on:
       db:
         condition: service_healthy
+    restart: unless-stopped
 
   matching_service:
     build:
@@ -34,7 +40,9 @@ services:
     container_name: "dating_bot-matching_service"
     environment:
       MATCHING_SERVICE_CONFIG_PATH: "./components/matching_service/configs/app.docker.toml"
-    command: uv run uvicorn components.matching_service.main:app --port 8002 --host 0.0.0.0
+      LOG_LEVEL: "INFO"
+      LOG_FORMAT: "TEXT"
+    command: uv run uvicorn components.matching_service.main:app --port 8002 --host 0.0.0.0 
     ports:
       - "127.0.0.1:8002:8002"
     depends_on:
@@ -42,6 +50,7 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
+    restart: unless-stopped
 
   notification_service:
     build:
@@ -54,6 +63,7 @@ services:
     depends_on:
       rabbitmq:
         condition: service_healthy
+    restart: unless-stopped
 
   api_gateway:
     build:
@@ -63,20 +73,21 @@ services:
     environment:
       API_GATEWAY_CONFIG_PATH: "./components/api_gateway/configs/app.docker.toml"
     command: uv run python -m components.api_gateway.main
-#      redis:
-#        condition: service_started
+    restart: unless-stopped
+  #      redis:
+  #        condition: service_started
 
-#  db_migrations:
-#    build:
-#      context: .
-#      dockerfile: Dockerfile
-#    container_name: "dating_bot-db_migrations"
-#    environment:
-#      DATING_BOT_CONFIG_PATH: "./configs/app.docker.toml"
-#    command: "uv run alembic upgrade head"
-#    depends_on:
-#      db:
-#        condition: service_healthy
+  #  db_migrations:
+  #    build:
+  #      context: .
+  #      dockerfile: Dockerfile
+  #    container_name: "dating_bot-db_migrations"
+  #    environment:
+  #      DATING_BOT_CONFIG_PATH: "./configs/app.docker.toml"
+  #    command: "uv run alembic upgrade head"
+  #    depends_on:
+  #      db:
+  #        condition: service_healthy
 
   db:
     image: postgis/postgis:16-3.4-alpine
@@ -113,7 +124,7 @@ services:
       - configs/minio.env
     ports:
       - "127.0.0.1:9000:9000"
-      - "127.0.0.1:9090:9090"
+    #      - "127.0.0.1:9090:9090"
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:9000/minio/health/live" ]
       interval: 30s
@@ -123,30 +134,34 @@ services:
       - ~/docker/minio/data:/data
     command: server /data --console-address ":9090"
 
-#  prometheus:
-#    image: prom/prometheus
-#    container_name: "dating_bot-prometheus"
-#    ports:
-#      - "9090:9090"
-#    volumes:
-#      - ./prometheus_data/prometheus.yml:/etc/prometheus/prometheus.yml
-#    command:
-#      - '--config.file=/etc/prometheus/prometheus.yml'
-#    restart: unless-stopped
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: "dating_bot-prometheus"
+    ports:
+      - "127.0.0.1:9090:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--web.listen-address=:9090'
+    restart: unless-stopped
 
-#  grafana:
-#    image: grafana/grafana
-#    container_name: "dating_bot-grafana"
-#    ports:
-#      - "3000:3000"
-#    volumes:
-#      - ./grafana/dashboard.yaml:/etc/grafana/provisioning/dashboards/main.yaml
-#      - ./grafana/dashboards:/var/lib/grafana/dashboards
-#      - ./grafana/provisioning/datasources/:/etc/grafana/provisioning/datasources/
-#    environment:
-#      - GF_SECURITY_ADMIN_USER=admin
-#      - GF_SECURITY_ADMIN_PASSWORD=admin
-#    restart: unless-stopped
+  grafana:
+    image: grafana/grafana:latest
+    container_name: "dating_bot-grafana"
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - ./grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards
+      - ./grafana/provisioning/datasources:/etc/grafana/provisioning/datasources
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
+    depends_on:
+      - prometheus
+    restart: unless-stopped
 
   rabbitmq:
     image: rabbitmq:3.13.7-management-alpine
@@ -159,7 +174,9 @@ services:
       interval: 15s
       timeout: 10s
       retries: 4
+    restart: unless-stopped
 
 volumes:
   postgres_data:
   redis_data:
+  grafana_data:
