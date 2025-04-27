@@ -23,8 +23,8 @@ class ProfileRepository:
             age: int,
             gender: str,
             city: str,
-            photo_path: Optional[str],
-            photo_file_id: Optional[str]
+            photo_path: str,
+            photo_file_ids: list[str]
     ) -> Profile:
         logger.info(f"Attempting to create profile for telegram_id: {telegram_id}")
         new_profile = Profile(
@@ -37,7 +37,7 @@ class ProfileRepository:
             gender=gender,
             city=city,
             photo_path=photo_path,
-            photo_file_id=photo_file_id,
+            photo_file_ids=photo_file_ids,
         )
         try:
             self.db.add(new_profile)

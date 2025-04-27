@@ -15,7 +15,8 @@ from dishka.integrations.aiogram import (
 
 from components.api_gateway.config import Config
 from components.api_gateway.controllers.bot.handlers import router as handler_router
-from components.api_gateway.controllers.bot.middlewares import CheckUsernameMiddleware, RateLimitMiddleware
+from components.api_gateway.controllers.bot.middlewares import CheckUsernameMiddleware, RateLimitMiddleware, \
+    MediaGroupMiddleware
 from components.api_gateway.di import setup_di
 
 logging.basicConfig(
@@ -35,6 +36,7 @@ async def start_polling():
             types.BotCommand(command='start', description='Начать работу с ботом'),
             types.BotCommand(command='view', description='Смотреть анкеты'),
             types.BotCommand(command='profile', description='Мой профиль'),
+            types.BotCommand(command='referral', description='Реферальная система'),
         ]
     )
 
@@ -46,6 +48,7 @@ async def start_polling():
     rate_limit_middleware = RateLimitMiddleware(ioc_container=container)
     dp.callback_query.outer_middleware(rate_limit_middleware)
     dp.message.outer_middleware(rate_limit_middleware)
+    dp.message.middleware(MediaGroupMiddleware())
 
     dp.include_router(handler_router)
 
