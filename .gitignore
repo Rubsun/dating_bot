@@ -6,6 +6,7 @@ __pycache__/
 components/api_gateway/configs/
 components/notification_service/configs/
 
+
 # C extensions
 *.so
 
