@@ -20,7 +20,8 @@ remove_kb = ReplyKeyboardRemove()
 def get_my_profile_keyboard():
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text='Заполнить заново', callback_data='my_profile-reset')]
+            [InlineKeyboardButton(text='Заполнить заново', callback_data='my_profile-reset')],
+            [InlineKeyboardButton(text='Удалить', callback_data='my_profile-delete')]
         ]
     )
 

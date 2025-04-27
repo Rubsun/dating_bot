@@ -547,6 +547,21 @@ async def fill_profile_again(callback: types.CallbackQuery, state: FSMContext):
         parse_mode="HTML",
     )
 
+@router.callback_query(F.data == 'my_profile-delete')
+async def fill_profile_again(callback: types.CallbackQuery, state: FSMContext, cfg: FromDishka[Config]):
+    async with httpx.AsyncClient() as client:
+        response = await client.delete(url=cfg.profile_service_url + f"/profiles/{callback.from_user.id}")
+        if response.status_code not in (200, 204):
+            logging.error('Something went wrong: %s', response.json())
+            await callback.message.answer('Что-то пошло не так, попробуйте позже')
+            return
+
+    await state.clear()
+    await callback.message.answer(
+        "Вы удалили свою анкету. Если захотите заполнить снова, нажмите /start",
+        parse_mode="HTML",
+    )
+
 @router.callback_query(F.data.startswith("show_username"))
 async def show_username_in_match(callback: types.CallbackQuery):
     username = callback.data.split(':')[1]
