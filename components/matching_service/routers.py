@@ -9,8 +9,8 @@ from geoalchemy2.shape import to_shape
 
 from components.matching_service.config import Config
 from components.matching_service.repositories import LikeMatchRepository
-from components.matching_service.schemas import LikeDislikePayload, UserMatch, UserInfoCreate, UserInfoUpdate, UserInfoResponse
-
+from components.matching_service.schemas import LikeDislikePayload, UserMatch, UserInfoCreate, UserInfoUpdate, \
+    UserInfoResponse, UserLike
 
 import aio_pika
 
@@ -36,13 +36,34 @@ async def create_like(
         rating = response.json()
         await matching_repo.update_rating(rating['profile_telegram_id'], rating['rating_score'])
 
-    await matching_repo.create_like(
+    like = await matching_repo.create_like(
         rated_user_id=payload.rated_user_id,
         rater_user_id=payload.rater_user_id,
         like_type=payload.like_type,
    )
 
     if payload.like_type == "like":
+        connection = await aio_pika.connect_robust(cfg.rabbitmq.uri)
+        async with connection:
+            routing_key = "likes"
+            channel = await connection.channel()
+            exchange = await channel.declare_exchange('likes', ExchangeType.DIRECT)
+            queue = await channel.declare_queue('likes')
+            await queue.bind(exchange, routing_key)
+
+            await exchange.publish(
+                aio_pika.Message(
+                    msgpack.packb(
+                        UserLike(
+                            liker_id=like.liker_telegram_id,
+                            liked_id=like.liked_telegram_id,
+                            like_date=str(like.created_at)
+                        )
+                    )
+                ),
+                routing_key=routing_key
+            )
+
         check_match = await matching_repo.get_match_by_users_id(payload.rater_user_id, payload.rated_user_id)
         if check_match:
             raise HTTPException(status_code=404, detail="Match has already created")
@@ -68,7 +89,6 @@ async def create_like(
                                 user2_id=match.user2_telegram_id,
                                 user1_username=match.user1_username,
                                 user2_username=match.user2_username,
-                                # match_data=match.matched_at
                             )
                         )
                     ),

@@ -53,3 +53,8 @@ class UserInfoResponse(BaseModel):
     longitude: float | None
     latitude: float | None
 
+
+class UserLike(TypedDict):
+    liker_id: int
+    liked_id: int
+    like_date: str
