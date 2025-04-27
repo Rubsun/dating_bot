@@ -1,15 +1,9 @@
-from components.rating_service.repositories import ProfileRatingRepository
-from dishka import FromDishka
-from decimal import Decimal
-
-
-
 class ProfileRatingCalculator:
     BASE_RATING = 800
     MAX_BONUS = 200
 
     WEIGHTS = {
-        'profile_completeness': 0.30,
+        # 'profile_completeness': 0.30,
         'photo_quality': 0.25,
         'description_quality': 0.20,
     }
@@ -18,7 +12,6 @@ class ProfileRatingCalculator:
     def calculate(cls, profile_data):
         score = 0
 
-        # Суммируем баллы с весами
         # score += profile_data.get('profile_completeness', 0) * cls.WEIGHTS['profile_completeness']
         score += (1 if profile_data.photo_file_id else 0) * cls.WEIGHTS['photo_quality']
         score += (1 if profile_data.bio else 0) * cls.WEIGHTS['description_quality']
@@ -38,7 +31,7 @@ class RatingService:
     async def init_rating(self, profile_data):
         initial_rating = self.calculator.calculate(profile_data)
 
-        return initial_rating
+        return round(initial_rating, 2)
 
     # async def get_rating(self, user_id):
     #     profile = await self.rating_repo.get_rating_by_profile_id(user_id)
@@ -51,17 +44,17 @@ class RatingService:
     #     return new_rating
     @staticmethod
     def _expected_score(rating_a, rating_b):
-        return Decimal(1) / (Decimal(1) + Decimal(10) ** ((rating_b - rating_a) / Decimal(400)))
+        return round(1 / (1 + 10 ** ((rating_b - rating_a) / 400)), 2)
 
     async def add_like(self, rater_rating, rated_rating):
         expected = self._expected_score(rater_rating, rated_rating)
-        delta = self.k * (Decimal(1) - expected)
-        return delta
+        delta = self.k * (1 - expected)
+        return round(delta, 2)
 
     async def add_dislike(self, rater_rating, rated_rating):
         expected = self._expected_score(rater_rating, rated_rating)
         delta = self.k * (-expected)
-        return delta
+        return round(delta, 2)
 
     # def get_top_users(self, limit=10):
     #     sorted_users = sorted(self.ratings.items(), key=lambda x: -x[1])

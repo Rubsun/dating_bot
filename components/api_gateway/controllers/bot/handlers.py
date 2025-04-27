@@ -234,6 +234,8 @@ async def waiting_for_photo(message: types.Message, state: FSMContext, cfg: From
                         cfg.rating_service_url + '/ratings',
                         json=new_profile_data
                 )
+                rating_info = rating_response.json()
+                preferences_data["rating"] = rating_info["rating_score"]
                 if rating_response.status_code not in (200, 201):
                     logging.warning(
                             f"Не удалось создать рейтинг: {rating_response.status_code} {rating_response.text}")

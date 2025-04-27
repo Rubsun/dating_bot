@@ -1,5 +1,5 @@
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy import Column, Integer, BigInteger, String, DateTime, ForeignKey, TIMESTAMP, DECIMAL, Index
+from sqlalchemy import Column, Integer, BigInteger, String, DateTime, ForeignKey, TIMESTAMP, Index, Float
 from sqlalchemy.sql import func
 import datetime
 from geoalchemy2 import Geometry
@@ -38,7 +38,7 @@ class UserInfo(Base):
     user_id = Column(BigInteger, primary_key=True)
     age = Column(Integer)
     gender = Column(String)
-    rating = Column(DECIMAL)
+    rating = Column(Float)
     preferred_gender = Column(String)
     preferred_min_age = Column(Integer)
     preferred_max_age = Column(Integer)
