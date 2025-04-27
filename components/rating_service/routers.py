@@ -32,6 +32,7 @@ async def create_rating(
     )
     return profile_rating
 
+
 @router.put("/ratings", response_model=RatingResponse)
 async def create_rating(
         rating_data: ProfileInfoCreate,
@@ -62,14 +63,6 @@ async def create_rating(
 
             return profile_rating
 
-
-
-
-    profile_rating = await rating_repo.create_rating(
-        profile_telegram_id=rating_data.telegram_id,
-        rating_score=rating
-    )
-    return profile_rating
 
 @router.get("/ratings/{profile_id}", response_model=RatingResponse)
 async def get_rating(

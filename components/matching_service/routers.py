@@ -28,6 +28,14 @@ async def create_like(
     if check_like:
         raise HTTPException(status_code=404, detail="Like has already created")
 
+    async with httpx.AsyncClient() as client:
+        response = await client.get(
+            url=f"{cfg.rating_service_url}/ratings/{payload.rated_user_id}"
+        )
+
+        rating = response.json()
+        await matching_repo.update_rating(rating['profile_telegram_id'], rating['rating_score'])
+
     await matching_repo.create_like(
         rated_user_id=payload.rated_user_id,
         rater_user_id=payload.rater_user_id,

@@ -287,3 +287,15 @@ class LikeMatchRepository:
         )
 
         return [u[0] for u in sorted_users][offset:offset + limit]
+
+    async def update_rating(self, user_id, new_rating):
+        stmt = select(UserInfo).where(UserInfo.user_id == user_id)
+        result = await self.db.execute(stmt)
+        info = result.scalar_one_or_none()
+
+        info.rating = new_rating if new_rating else info.rating
+
+        await self.db.commit()
+        await self.db.refresh(info)
+
+        return info

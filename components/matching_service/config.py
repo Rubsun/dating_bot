@@ -32,6 +32,7 @@ class RMQConfig:
 @dataclass
 class Config:
     profile_service_url: str
+    rating_service_url: str
     db: DatabaseConfig
     rabbitmq: RMQConfig
 
@@ -41,6 +42,7 @@ def load_config(config_path: str) -> Config:
         data = toml.load(config_file)
     return Config(
         profile_service_url=data["profile_service_url"],
+        rating_service_url=data["rating_service_url"],
         db=DatabaseConfig(**data["db"]),
         rabbitmq=RMQConfig(**data["rmq"]),
     )
