@@ -37,4 +37,3 @@ def load_config(config_path: str) -> Config:
         rating_service_url=data["rating_service_url"],
         matching_service_url=data["matching_service_url"],
     )
-

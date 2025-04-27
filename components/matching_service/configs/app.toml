@@ -1,3 +1,5 @@
+profile_service_url = "http://localhost:8000/api/v1"
+
 [db]
 host = "localhost"
 port = 5432

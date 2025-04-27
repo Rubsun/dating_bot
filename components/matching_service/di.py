@@ -2,7 +2,7 @@ import os
 from collections.abc import AsyncGenerator
 
 from dishka import Provider, Scope, make_async_container, provide
-from redis.asyncio import Redis
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import (AsyncEngine, AsyncSession,
                                     async_sessionmaker, create_async_engine)
 
@@ -30,6 +30,7 @@ class MatchingServiceProvider(Provider):
     async def get_sessionmaker(self, engine: AsyncEngine) -> async_sessionmaker:
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
+            await conn.execute(text("CREATE EXTENSION IF NOT EXISTS postgis"))
         return async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
     @provide(scope=Scope.REQUEST)

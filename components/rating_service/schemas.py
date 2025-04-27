@@ -5,19 +5,19 @@ from pydantic import BaseModel, Field
 
 class ProfileInfo(BaseModel):
     telegram_id: int = Field(..., example=12345678)
-    first_name: str = Field(..., max_length=100, example="John")
-    last_name: str = Field(..., max_length=100, example="Doe")
-    bio: Optional[str] = Field(None, max_length=300, example="Software Developer")
-    age: int = Field(..., ge=0, le=150, example=30)
+    first_name: str = Field(..., example="John")
+    last_name: str = Field(..., example="Doe")
+    bio: Optional[str] = Field(None, example="Software Developer")
+    age: int = Field(..., example=30)
     gender: str = Field(
         ..., example="Male", description="Allowed values: Male, Female, Other"
     )
-    city: str = Field(..., max_length=100, example="New York")
+    city: str = Field(..., example="New York")
     photo_file_id: Optional[str] = Field(None, example="AgACAgUAAxkBAA...")
 
 
 class RatingBase(BaseModel):
-    rating_score: float = Field(..., ge=0, le=10000, example=85.5, description="Rating value between 0 and 100")
+    rating_score: float = Field(..., example=85.5, description="Rating value between 0 and 100")
 
 
 class RatingCreate(RatingBase):
