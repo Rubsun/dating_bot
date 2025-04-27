@@ -22,12 +22,12 @@ class ProfileRatingCalculator:
         return round(cls.BASE_RATING + bonus)
 
     @classmethod
-    def update_calculation(cls, profile_data):
-        rating = profile_data.rating
+    def update_calculation(cls, old_rating, profile_data):
+        rating = old_rating
 
         new_rating = 0
-        new_rating += (1 if profile_data.photo_file_id else 0) * cls.WEIGHTS['photo_quality'] * rating
-        new_rating += (1 if profile_data.bio else 0) * cls.WEIGHTS['description_quality'] * rating
+        new_rating += (1 if profile_data['photo_file_id'] else 0) * cls.WEIGHTS['photo_quality'] * rating
+        new_rating += (1 if profile_data['bio'] else 0) * cls.WEIGHTS['description_quality'] * rating
 
         return rating + new_rating
 
@@ -47,8 +47,8 @@ class RatingService:
     #     profile = await self.rating_repo.get_rating_by_profile_id(user_id)
     #     return profile
     #
-    def update_rating(self, profile_data):
-        updating_rating = self.calculator.update_calculation(profile_data)
+    def update_rating(self, old_rating, profile_data):
+        updating_rating = self.calculator.update_calculation(old_rating, profile_data)
 
         return updating_rating
 

@@ -34,31 +34,33 @@ async def create_rating(
 
 @router.put("/ratings", response_model=RatingResponse)
 async def create_rating(
-        rating_data: ProfileInfoUpdate,
+        rating_data: ProfileInfoCreate,
         rating_repo: FromDishka[ProfileRatingRepository],
         cfg: FromDishka[Config]
 ):
     profile = await rating_repo.get_rating_by_profile_id(rating_data.telegram_id)
-    if profile:
-        raise HTTPException(status_code=404, detail="Profile is already registered")
+    if not profile:
+        raise HTTPException(status_code=404, detail="No Profile")
 
     async with httpx.AsyncClient() as client:
         response = await client.get(f"{cfg.profile_service_url}/profiles/{rating_data.telegram_id}")
 
         if response.status_code == 404:
             print('Fimoz')
+
         elif response.status_code == 200:
             print('Zdravo')
 
-        answer = response.json()
-        rating = service.update_rating(answer)
+            answer = response.json()
+            old_rating = profile.rating_score
+            rating = service.update_rating(old_rating, answer)
 
-        profile_rating = await rating_repo.update_rating(
-            profile_id=rating_data.telegram_id,
-            new_rating=rating
-        )
+            profile_rating = await rating_repo.update_rating(
+                profile_id=rating_data.telegram_id,
+                new_rating=rating
+            )
 
-        return profile_rating
+            return profile_rating
 
 
 
