@@ -21,7 +21,7 @@ class ProfileRepository:
             gender: str,
             city: str,
             photo_path: str,
-            photo_file_id: str
+            photo_file_ids: list[str]
     ) -> Profile:
         # Create a new Profile object
         new_profile = Profile(
@@ -34,7 +34,7 @@ class ProfileRepository:
             gender=gender,
             city=city,
             photo_path=photo_path,
-            photo_file_id=photo_file_id,
+            photo_file_ids=photo_file_ids,
         )
         self.db.add(new_profile)
         await self.db.commit()
