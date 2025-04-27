@@ -15,11 +15,21 @@ class ProfileRatingCalculator:
         # score += profile_data.get('profile_completeness', 0) * cls.WEIGHTS['profile_completeness']
         score += (1 if profile_data.photo_file_id else 0) * cls.WEIGHTS['photo_quality']
         score += (1 if profile_data.bio else 0) * cls.WEIGHTS['description_quality']
+        score *= (1 if profile_data.gender == 'male' else 0.9)
 
         # Применяем максимальный бонус
         bonus = cls.MAX_BONUS * min(max(score, 0), 1)  # Ограничение 0-1
         return round(cls.BASE_RATING + bonus)
 
+    @classmethod
+    def update_calculation(cls, profile_data):
+        rating = profile_data.rating
+
+        new_rating = 0
+        new_rating += (1 if profile_data.photo_file_id else 0) * cls.WEIGHTS['photo_quality'] * rating
+        new_rating += (1 if profile_data.bio else 0) * cls.WEIGHTS['description_quality'] * rating
+
+        return rating + new_rating
 
 class RatingService:
     def __init__(self, calculator: ProfileRatingCalculator, k=32, min_rating=100):
@@ -37,11 +47,11 @@ class RatingService:
     #     profile = await self.rating_repo.get_rating_by_profile_id(user_id)
     #     return profile
     #
-    # def _update_rating(self, user_id, delta):
-    #     current = self.get_rating(user_id)
-    #     new_rating = max(current + delta, self.min_rating)
-    #     self.ratings[user_id] = new_rating
-    #     return new_rating
+    def update_rating(self, profile_data):
+        updating_rating = self.calculator.update_calculation(profile_data)
+
+        return updating_rating
+
     @staticmethod
     def _expected_score(rating_a, rating_b):
         return round(1 / (1 + 10 ** ((rating_b - rating_a) / 400)), 2)

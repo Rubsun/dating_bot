@@ -1,11 +1,13 @@
+import httpx
 from fastapi import HTTPException, APIRouter
 
 from dishka import FromDishka
 from dishka.integrations.fastapi import DishkaRoute
 
+from components.rating_service.config import Config
 from components.rating_service.repositories import ProfileRatingRepository
 
-from components.rating_service.schemas import RatingCreate, RatingResponse, RatingBase, ProfileInfo, LikeDislikePayload
+from components.rating_service.schemas import RatingCreate, RatingResponse, RatingBase, ProfileInfoCreate, LikeDislikePayload, ProfileInfoUpdate
 from components.rating_service.services import RatingService, ProfileRatingCalculator
 
 
@@ -15,7 +17,7 @@ router = APIRouter(route_class=DishkaRoute)
 
 @router.post("/ratings", response_model=RatingResponse)
 async def create_rating(
-        rating_data: ProfileInfo,
+        rating_data: ProfileInfoCreate,
         rating_repo: FromDishka[ProfileRatingRepository],
 ):
     profile = await rating_repo.get_rating_by_profile_id(rating_data.telegram_id)
@@ -30,6 +32,42 @@ async def create_rating(
     )
     return profile_rating
 
+@router.put("/ratings", response_model=RatingResponse)
+async def create_rating(
+        rating_data: ProfileInfoUpdate,
+        rating_repo: FromDishka[ProfileRatingRepository],
+        cfg: FromDishka[Config]
+):
+    profile = await rating_repo.get_rating_by_profile_id(rating_data.telegram_id)
+    if profile:
+        raise HTTPException(status_code=404, detail="Profile is already registered")
+
+    async with httpx.AsyncClient() as client:
+        response = await client.get(f"{cfg.profile_service_url}/profiles/{rating_data.telegram_id}")
+
+        if response.status_code == 404:
+            print('Fimoz')
+        elif response.status_code == 200:
+            print('Zdravo')
+
+        answer = response.json()
+        rating = service.update_rating(answer)
+
+        profile_rating = await rating_repo.update_rating(
+            profile_id=rating_data.telegram_id,
+            new_rating=rating
+        )
+
+        return profile_rating
+
+
+
+
+    profile_rating = await rating_repo.create_rating(
+        profile_telegram_id=rating_data.telegram_id,
+        rating_score=rating
+    )
+    return profile_rating
 
 @router.get("/ratings/{profile_id}", response_model=RatingResponse)
 async def get_rating(

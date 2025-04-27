@@ -3,11 +3,25 @@ from typing import Optional
 
 from pydantic import BaseModel, Field
 
-class ProfileInfo(BaseModel):
+class ProfileInfoCreate(BaseModel):
     telegram_id: int = Field(..., example=12345678)
     first_name: str = Field(..., example="John")
     last_name: str = Field(..., example="Doe")
     bio: Optional[str] = Field(None, example="Software Developer")
+    age: int = Field(..., example=30)
+    gender: str = Field(
+        ..., example="Male", description="Allowed values: Male, Female, Other"
+    )
+    city: str = Field(..., example="New York")
+    photo_file_id: Optional[str] = Field(None, example="AgACAgUAAxkBAA...")
+
+
+class ProfileInfoUpdate(BaseModel):
+    telegram_id: int = Field(..., example=12345678)
+    first_name: str = Field(..., example="John")
+    last_name: str = Field(..., example="Doe")
+    bio: Optional[str] = Field(None, example="Software Developer")
+    rating: float = Field(..., example=1000)
     age: int = Field(..., example=30)
     gender: str = Field(
         ..., example="Male", description="Allowed values: Male, Female, Other"
