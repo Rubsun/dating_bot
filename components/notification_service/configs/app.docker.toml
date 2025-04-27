@@ -1,4 +1,4 @@
-profile_service_url = "http://localhost:8000/api/v1"
+profile_service_url = "http://profile_service/api/v1"
 
 [bot]
 bot_token = "7595911850:AAHs-6bjlqCrO_eqLC_eVu1L4HEW-2nv4M0"

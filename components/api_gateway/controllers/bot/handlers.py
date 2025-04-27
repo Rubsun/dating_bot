@@ -2,7 +2,7 @@ import logging
 from datetime import datetime, timedelta
 
 import httpx
-from aiogram import Router, F
+from aiogram import Router, F, Bot
 from aiogram import types
 from aiogram.filters import CommandStart, StateFilter, Command
 from aiogram.fsm.context import FSMContext
@@ -92,19 +92,22 @@ async def waiting_for_age(message: types.Message, state: FSMContext):
 
 @router.callback_query(F.data.startswith("gender_"),
                        StateFilter(ProfileCreationStates.waiting_for_gender))
-async def select_gender(callback: types.CallbackQuery, state: FSMContext):
+async def select_gender(callback: types.CallbackQuery, state: FSMContext, bot: Bot):
     gender = callback.data.split("_")[1]
     await state.update_data(gender=gender)
     await state.set_state(ProfileCreationStates.waiting_for_city)
-    await callback.message.answer("Введите ваш город", reply_markup=types.ReplyKeyboardMarkup(
-        keyboard=[[types.KeyboardButton(text='📍 Отправить геолокацию', request_location=True, resize_keyboard=True)]]
-    ))
+
     await callback.message.delete()
+    await bot.send_message(callback.from_user.id, "Введите ваш город", reply_markup=types.ReplyKeyboardMarkup(
+        keyboard=[[types.KeyboardButton(text='📍 Отправить геолокацию', request_location=True)]],
+        resize_keyboard=True,
+        one_time_keyboard=True
+    ))
 
 
 
 @router.message(ProfileCreationStates.waiting_for_city, F.content_type == 'location')
-async def handle_user_location(message: types.Message,  state: FSMContext):
+async def handle_user_location(message: types.Message,  state: FSMContext, bot: Bot):
     lat = message.location.latitude
     lon = message.location.longitude
 
@@ -114,7 +117,9 @@ async def handle_user_location(message: types.Message,  state: FSMContext):
         longitude=lon,
         city=city,
     )
-    print('Got city:', city)
+
+    temp_msg = await bot.send_message(message.from_user.id, "...", reply_markup=remove_kb)
+    await temp_msg.delete()
 
     await state.set_state(ProfileCreationStates.waiting_for_gender_preference)
     await message.answer("Кого вы ищете?", reply_markup=gender_preferences_kb)
