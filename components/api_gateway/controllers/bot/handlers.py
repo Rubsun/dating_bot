@@ -13,8 +13,8 @@ from dishka.integrations.aiogram import FromDishka
 from components.api_gateway.config import Config
 from components.api_gateway.utils import get_coordinates, get_city
 from components.api_gateway.controllers.bot.keyboards import gender_kb, remove_kb, skip_kb, get_my_profile_keyboard, \
-    gender_preferences_kb
-from components.api_gateway.controllers.bot.states import ProfileCreationStates
+    gender_preferences_kb, get_rate_likers_keyboard, get_rating_keyboard
+from components.api_gateway.controllers.bot.states import ProfileCreationStates, ViewingStates, ViewingLikerProfiles
 from aiogram.filters import CommandStart, CommandObject
 from aiogram.utils.deep_linking import decode_payload
 from aiogram.utils.deep_linking import create_start_link
@@ -374,25 +374,6 @@ async def waiting_for_photo(message: types.Message, state: FSMContext, cfg: From
         await state.clear()
 
 
-
-class ViewingStates(StatesGroup):
-    viewing = State()
-
-
-def get_rating_keyboard() -> InlineKeyboardMarkup:
-    buttons = [
-        [
-            InlineKeyboardButton(text="👍 Лайк", callback_data="rate:like"),
-            InlineKeyboardButton(text="👎 Дизлайк", callback_data="rate:dislike"),
-        ],
-        [
-            InlineKeyboardButton(text="❌ Закончить просмотр", callback_data="rate:stop"),
-        ]
-    ]
-    return InlineKeyboardMarkup(inline_keyboard=buttons)
-
-
-
 async def load_suitable_profiles(message: types.Message, offset: int, cfg: Config):
     current_user_id = message.chat.id
     match_profiles_url = f"{cfg.matching_service_url}/match/profiles/{current_user_id}?offset={offset}&limit=50"
@@ -451,54 +432,56 @@ async def show_next_profile(message: types.Message, state: FSMContext, cfg: Conf
         )
         await state.set_state(ViewingStates.viewing)
 
-        caption = (
-            f"<b>{current_profile['first_name']} {current_profile.get('last_name', '')}, {current_profile['age']}</b>, {current_profile['city']}\n"
-            f"Пол: {'М' if current_profile['gender'] == 'male' else 'Ж'}\n\n"
-            f"{'О себе: ' + current_profile.get('bio') if current_profile.get('bio') != '' else 'Нет описания'}"
-        )
-
         keyboard = get_rating_keyboard()
-
-        photo_file_ids = current_profile.get('photo_file_ids')
-        if photo_file_ids and photo_file_ids != "None":
-            logging.info(current_profile['photo_file_ids'])
-
-            if len(photo_file_ids) == 1:
-                await message.answer_photo(
-                    photo=current_profile['photo_file_ids'][0],
-                    caption=caption,
-                    parse_mode="HTML",
-                    reply_markup=keyboard
-                )
-                return
-
-            await message.answer_media_group(
-                media=[
-                    types.input_media_photo.InputMediaPhoto(
-                        media=photo_id,
-                        caption=caption if (i == len(photo_file_ids) - 1) else None,
-                        parse_mode="HTML" if (i == len(photo_file_ids) - 1) else None,
-                    )
-                    for i, photo_id in enumerate(photo_file_ids)
-                ],
-            )
-            await message.answer(
-                "Меню",
-                reply_markup=keyboard
-            )
-
-        else:
-            await message.answer_photo(
-                photo=DEFAULT_PROFILE_PHOTO_ID,
-                caption=caption,
-                parse_mode="HTML",
-                reply_markup=keyboard
-            )
+        await send_view_profile_msg(current_profile, message, keyboard)
     except Exception as e:
         await state.clear()
         await message.answer(f"😕 Не удалось загрузить анкеты. Ошибка: {e}",
                              reply_markup=remove_kb)
 
+
+async def send_view_profile_msg(current_profile, message, keyboard):
+    caption = (
+        f"<b>{current_profile['first_name']} {current_profile.get('last_name', '')}, {current_profile['age']}</b>, {current_profile['city']}\n"
+        f"Пол: {'М' if current_profile['gender'] == 'male' else 'Ж'}\n\n"
+        f"{'О себе: ' + current_profile.get('bio') if current_profile.get('bio') != '' else 'Нет описания'}"
+    )
+
+    photo_file_ids = current_profile.get('photo_file_ids')
+    if photo_file_ids and photo_file_ids != "None":
+        logging.info(current_profile['photo_file_ids'])
+
+        if len(photo_file_ids) == 1:
+            await message.answer_photo(
+                photo=current_profile['photo_file_ids'][0],
+                caption=caption,
+                parse_mode="HTML",
+                reply_markup=keyboard
+            )
+            return
+
+        await message.answer_media_group(
+            media=[
+                types.input_media_photo.InputMediaPhoto(
+                    media=photo_id,
+                    caption=caption if (i == len(photo_file_ids) - 1) else None,
+                    parse_mode="HTML" if (i == len(photo_file_ids) - 1) else None,
+                )
+                for i, photo_id in enumerate(photo_file_ids)
+            ],
+        )
+        await message.answer(
+            "Меню",
+            reply_markup=keyboard
+        )
+
+    else:
+        await message.answer_photo(
+            photo=DEFAULT_PROFILE_PHOTO_ID,
+            caption=caption,
+            parse_mode="HTML",
+            reply_markup=keyboard
+        )
 
 
 @router.message(Command("view"), StateFilter(None))
@@ -588,50 +571,14 @@ async def process_rating_callback(callback: types.CallbackQuery, state: FSMConte
 
 
 @router.message(Command("profile"), StateFilter(None))
-async def get_my_profile(message: types.Message, bot: Bot, cfg: FromDishka[Config]):
+async def get_my_profile(message: types.Message, cfg: FromDishka[Config]):
     async with httpx.AsyncClient() as client:
         response = await client.get(f"{cfg.profile_service_url}/profiles/{message.from_user.id}")
 
         if response.status_code == 200:
             profile_data = response.json()
-            caption = (
-                f"<b>{profile_data['first_name']} {profile_data.get('last_name', '')}, {profile_data['age']}</b>, {profile_data['city']}\n"
-                f"Пол: {'М' if profile_data['gender'] == 'male' else 'Ж'}\n\n"
-                f"{'О себе: ' + profile_data.get('bio') if profile_data.get('bio') != '' else 'Нет описания'}"
-            )
             keyboard = get_my_profile_keyboard()
-
-            photo_file_ids = profile_data.get('photo_file_ids')
-            if photo_file_ids and photo_file_ids != "None":
-                logging.info(profile_data['photo_file_ids'])
-
-                if len(photo_file_ids) == 1:
-                    await message.answer_photo(
-                        photo=profile_data['photo_file_ids'][0],
-                        caption=caption,
-                        parse_mode="HTML",
-                        reply_markup=keyboard
-                    )
-                    return
-
-                await message.answer_media_group(
-                    media=[
-                        types.input_media_photo.InputMediaPhoto(
-                            media=photo_id,
-                            caption=caption if (i == len(photo_file_ids) - 1) else None,
-                            parse_mode="HTML" if (i == len(photo_file_ids) - 1) else None,
-                        )
-                        for i, photo_id in enumerate(photo_file_ids)
-                    ],
-                )
-                await bot.send_message(message.from_user.id, 'Меню', reply_markup=keyboard)
-            else:
-                await message.answer_photo(
-                    photo=DEFAULT_PROFILE_PHOTO_ID,
-                    caption=caption,
-                    parse_mode="HTML",
-                    reply_markup=keyboard
-                )
+            await send_view_profile_msg(profile_data, message, keyboard)
         elif response.status_code == 404:
             await message.answer("Сначала вам нужно создать свою анкету. Введите /start")
         else:
@@ -674,6 +621,130 @@ async def show_username_in_match(callback: types.CallbackQuery):
         await callback.message.edit_caption(caption=callback.message.caption + f'\n\nНаписать: @{username}')
         return
     await callback.message.edit_text(text=callback.message.text + f'\n\nНаписать: @{username}')
+
+
+@router.callback_query(F.data.startswith("my_likers"))
+async def show_username_in_match(callback: types.CallbackQuery, state: FSMContext, bot: Bot, cfg: FromDishka[Config]):
+    liker_ids = eval(callback.data.split('-')[1])
+    await state.update_data(
+        current_likers=liker_ids
+    )
+
+    await callback.message.edit_reply_markup(reply_markup=None)
+    await callback.message.answer("Начинаем просмотр анкет лайкеров...")
+    await show_next_liker_profile(callback.message, callback.from_user.id, state, bot, cfg)
+
+
+@router.callback_query(StateFilter(ViewingLikerProfiles.viewing), F.data.startswith("rate_liker:"))
+async def process_rating_callback(callback: types.CallbackQuery, state: FSMContext, bot: Bot, cfg: FromDishka[Config]):
+    action = callback.data.split(":")[1]
+    current_user_id = callback.from_user.id
+    state_data = await state.get_data()
+
+    current_likers = state_data['current_likers']
+    current_liker_idx = state_data.get('current_liker_idx', 0)
+    current_liker_id = current_likers[current_liker_idx]
+
+    await callback.message.edit_reply_markup(reply_markup=None)
+
+    if action == "stop":
+        await callback.message.answer("Просмотр анкет завершен.", reply_markup=remove_kb)
+        await state.clear()
+        await callback.answer()
+        return
+
+    try:
+        async with httpx.AsyncClient() as client:
+            rating_response = await client.post(
+                f"{cfg.rating_service_url}/ratings/{action}",
+                json={
+                    "rater_user_id": current_user_id,
+                    "rated_user_id": current_liker_id
+                }
+            )
+
+        if rating_response.status_code == 200:
+            await callback.answer(f"Вы поставили {('лайк' if action == 'like' else 'дизлайк')}!")
+
+            # Показать следующую анкету
+            await state.update_data(
+                current_liker_idx=current_liker_idx + 1
+            )
+            await show_next_liker_profile(callback.message, current_user_id, state, bot, cfg)
+        else:
+            await callback.answer(f"Ошибка при отправке оценки: {rating_response.status_code}", show_alert=True)
+            await callback.message.answer("Не удалось обработать ваш голос. Попробуйте позже.")
+            print(rating_response.json())
+            await state.clear()
+
+    except httpx.RequestError as e:
+        await callback.answer(f"Ошибка сети: {e}", show_alert=True)
+        await callback.message.answer("Ошибка сети. Попробуйте позже.")
+        await state.clear()
+    except Exception as e:
+        await callback.answer(f"Непредвидённая ошибка: {e}", show_alert=True)
+        await callback.message.answer("Что-то пошло не так.")
+        await state.clear()
+
+
+async def show_next_liker_profile(message, liked_id, state, bot, cfg):
+    data = await state.get_data()
+
+    try:
+        current_likers = data.get('current_likers')
+        current_liker_idx = data.get('current_liker_idx', 0)
+
+        if current_liker_idx >= len(current_likers):
+            await state.clear()
+            await message.answer('Лайки закончились')
+            return
+
+        current_liker_id = current_likers[current_liker_idx]
+        async with httpx.AsyncClient() as client:
+            liker_profile_resp = await client.get(f"{cfg.profile_service_url}/profiles/{current_liker_id}")
+            liker_data = liker_profile_resp.json()
+        print(liker_data)
+        await send_like_msg(liker_data, bot, liked_id)
+
+        await state.set_state(ViewingLikerProfiles.viewing)
+    except Exception as e:
+        await state.clear()
+        await message.answer(f"😕 Не удалось загрузить анкеты. Ошибка: {e}",
+                             reply_markup=remove_kb)
+
+
+async def send_like_msg(liker_data, bot: Bot, liked_id):
+    liker_profile_photos = liker_data['photo_file_ids']
+    keyboard = get_rate_likers_keyboard()
+
+    text = (
+        f"❤️Поздравляем, y вас лайк от @{liker_data['tg_username']}!\n\n"
+        f"<b>{liker_data['first_name']} {liker_data.get('last_name', '')}, {liker_data['age']}</b>, {liker_data['city']}\n"
+        f"Пол: {'М' if liker_data['gender'] == 'male' else 'Ж'}\n\n"
+        f"{'О себе: ' + liker_data.get('bio') if liker_data.get('bio') != '' else 'Нет описания'}"
+    )
+
+    if liker_profile_photos in ('None', None) or len(liker_profile_photos) == 1:
+        await bot.send_photo(
+            chat_id=liked_id,
+            photo=liker_data['photo_file_ids'] if liker_profile_photos in ('None', None) else DEFAULT_PROFILE_PHOTO_ID,
+            caption=text,
+            parse_mode="HTML",
+            reply_markup=keyboard
+        )
+    else:
+        await bot.send_media_group(
+            chat_id=liked_id,
+            media=[
+                types.input_media_photo.InputMediaPhoto(
+                    media=photo_id,
+                    caption=text if (i == len(liker_profile_photos) - 1) else None,
+                    parse_mode="HTML" if (i == len(liker_profile_photos) - 1) else None,
+                )
+                for i, photo_id in enumerate(liker_profile_photos)
+            ],
+        )
+        await bot.send_message(chat_id=liked_id, text='Меню', reply_markup=keyboard)
 
 
 @router.message(F.content_type == 'photo')
