@@ -31,5 +31,5 @@ gender_preferences_kb = InlineKeyboardMarkup(inline_keyboard=[
         InlineKeyboardButton(text='Женщин', callback_data='gender_pref:female'),
 
     ],
-    [InlineKeyboardButton(text='Все равно', callback_data='gender_pref:all')]
+    [InlineKeyboardButton(text='Все равно', callback_data='gender_pref:any')]
 ])

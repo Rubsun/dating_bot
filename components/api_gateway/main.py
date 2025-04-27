@@ -1,5 +1,10 @@
 import asyncio
+import json
 import logging
+from datetime import datetime
+from functools import partial
+from typing import Any
+
 from redis.asyncio import Redis
 
 from aiogram import Bot, Dispatcher, types
@@ -10,7 +15,7 @@ from dishka.integrations.aiogram import (
 
 from components.api_gateway.config import Config
 from components.api_gateway.controllers.bot.handlers import router as handler_router
-from components.api_gateway.controllers.bot.middlewares import CheckUsernameMiddleware
+from components.api_gateway.controllers.bot.middlewares import CheckUsernameMiddleware, RateLimitMiddleware
 from components.api_gateway.di import setup_di
 
 logging.basicConfig(
@@ -33,12 +38,25 @@ async def start_polling():
         ]
     )
 
-    dp = Dispatcher(storage=RedisStorage(Redis.from_url(cfg.redis.uri)))
+    redis = await container.get(Redis)
+    dp = Dispatcher(storage=RedisStorage(redis, json_dumps=partial(json.dumps, cls=DTOJSONEncoder)))
     setup_dishka(container=container, router=dp, auto_inject=True)
     dp.message.middleware(CheckUsernameMiddleware())
+
+    rate_limit_middleware = RateLimitMiddleware(ioc_container=container)
+    dp.callback_query.outer_middleware(rate_limit_middleware)
+    dp.message.outer_middleware(rate_limit_middleware)
+
     dp.include_router(handler_router)
 
     await dp.start_polling(bot)
+
+
+class DTOJSONEncoder(json.JSONEncoder):
+    def default(self, o: Any) -> Any:
+        if isinstance(o, datetime):
+            return o.isoformat()
+        return super().default(o)
 
 
 if __name__ == "__main__":

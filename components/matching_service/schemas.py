@@ -19,8 +19,19 @@ class UserMatch(TypedDict):
     user2_username: str
     # match_date: datetime
 
-class UserInfo(BaseModel):
+class UserInfoCreate(BaseModel):
     user_id: int
+    age: int
+    gender: str
+    rating: float
+    preferred_gender: str
+    preferred_min_age: int
+    preferred_max_age: int
+    latitude: float
+    longitude: float
+
+
+class UserInfoUpdate(BaseModel):
     age: int | None = None
     gender: str | None = None
     rating: float | None = None

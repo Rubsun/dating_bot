@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime, timedelta
 
 import httpx
 from aiogram import Router, F
@@ -25,8 +26,10 @@ async def start_cmd(message: types.Message, state: FSMContext, cfg: FromDishka[C
     user_id = message.from_user.id
     first_name = message.from_user.first_name
 
+    await state.clear()
+
     async with httpx.AsyncClient() as client:
-        response = await client.get(f"{cfg.profile_service_url}/{user_id}")
+        response = await client.get(f"{cfg.profile_service_url}/profiles/{user_id}")
 
         if response.status_code == 404:
             await state.update_data(
@@ -174,7 +177,7 @@ async def waiting_for_photo(message: types.Message, state: FSMContext, cfg: From
         logging.info("refill: %s. Deleting profile..", refill)
 
         async with httpx.AsyncClient() as client:
-            response = await client.delete(f"{cfg.profile_service_url}/{profile_data['user_id']}")
+            response = await client.delete(f"{cfg.profile_service_url}/profiles/{profile_data['user_id']}")
             logging.info("Deletion status: %d; data: %s", response.status_code, response.json())
 
         await state.update_data(
@@ -194,7 +197,7 @@ async def waiting_for_photo(message: types.Message, state: FSMContext, cfg: From
     }
 
     preferences_data = {
-        "telegram_id": profile_data['user_id'],
+        "user_id": profile_data['user_id'],
         "age": profile_data['age'],
         "gender": profile_data['gender'],
         "latitude": profile_data["latitude"],
@@ -215,7 +218,7 @@ async def waiting_for_photo(message: types.Message, state: FSMContext, cfg: From
                 files["photo"] = ("profile_photo.jpg", photo_bytes, "image/jpeg")
 
             response = await client.post(
-                cfg.profile_service_url,
+                cfg.profile_service_url + '/profiles',
                 data=form_data_str,
                 files=files
             )
@@ -228,9 +231,9 @@ async def waiting_for_photo(message: types.Message, state: FSMContext, cfg: From
 
             try:
                 rating_response = await client.post(
-                        cfg.rating_service_url,
+                        cfg.rating_service_url + '/ratings',
                         json=new_profile_data
-                    )
+                )
                 if rating_response.status_code not in (200, 201):
                     logging.warning(
                             f"Не удалось создать рейтинг: {rating_response.status_code} {rating_response.text}")
@@ -281,69 +284,98 @@ def get_rating_keyboard() -> InlineKeyboardMarkup:
 
 
 
+async def load_suitable_profiles(message: types.Message, offset: int, cfg: Config):
+    current_user_id = message.chat.id
+    match_profiles_url = f"{cfg.matching_service_url}/match/profiles/{current_user_id}?offset={offset}&limit=50"
+
+    async with httpx.AsyncClient() as client:
+        response = await client.get(match_profiles_url)
+
+        if response.status_code == 200:
+            profiles_data = response.json()
+
+            return profiles_data
+        elif response.status_code == 404:
+            return []
+        raise Exception(f"{response.json()}")
+
+
 async def show_next_profile(message: types.Message, state: FSMContext, cfg: Config):
     current_user_id = message.chat.id
     data = await state.get_data()
 
-    next_profile_url = f"{cfg.matching_service_url}/match/next/{current_user_id}?offset={data.get('view_offset', 0)}"
-
     try:
-        async with httpx.AsyncClient() as client:
-            response = await client.get(next_profile_url)
+        profiles_data = data.get('matched_profiles')
+        last_loaded = data.get('last_loaded')
+        offset = data.get('matched_profiles_offset', 0)
+        viewing_profile_idx = data.get('viewing_profile_idx')
 
-            if response.status_code == 200:
-                profile_data = response.json()
-                await state.update_data(
-                    viewing_profile_id=profile_data['user_id'],
-                    viewing_profile_username=profile_data['tg_username'],
-                    view_offset=data.get('view_offset', 0) + 1
-                )
-                await state.set_state(ViewingStates.viewing)
+        print(profiles_data, last_loaded, offset,viewing_profile_idx)
 
-                caption = (
-                    f"<b>{profile_data['first_name']} {profile_data.get('last_name', '')}, {profile_data['age']}</b>, {profile_data['city']}\n"
-                    f"Пол: {'М' if profile_data['gender'] == 'male' else 'Ж'}\n\n"
-                    f"{'О себе: ' + profile_data.get('bio') if profile_data.get('bio') != '' else 'Нет описания'}"
-                )
-
-                keyboard = get_rating_keyboard()
-
-                if profile_data.get('photo_file_id') and profile_data.get('photo_file_id') != "None":
-                    logging.info(profile_data['photo_file_id'])
-                    await message.answer_photo(
-                        photo=profile_data['photo_file_id'],
-                        caption=caption,
-                        parse_mode="HTML",
-                        reply_markup=keyboard
-                    )
-                else:
-                    await message.answer_photo(
-                        photo=DEFAULT_PROFILE_PHOTO_ID,
-                        caption=caption,
-                        parse_mode="HTML",
-                        reply_markup=keyboard
-                    )
-
-            elif response.status_code == 404:
+        if (profiles_data is None) or (last_loaded is not None and (datetime.now() - datetime.fromisoformat(last_loaded) > timedelta(minutes=1))):
+            profiles_data = await load_suitable_profiles(message, offset, cfg)
+            if len(profiles_data) == 0:
+                await state.clear()
                 await message.answer("🤷‍♀️ Анкеты для просмотра закончились. Попробуйте позже.", reply_markup=remove_kb)
-                await state.clear()
-            else:
-                await message.answer(f"😕 Не удалось загрузить анкету. Ошибка: {response.status_code}",
-                                     reply_markup=remove_kb)
-                await state.clear()
+                return
 
-    except httpx.RequestError as e:
-        await message.answer(f"❌ Ошибка сети при загрузке анкеты: {e}", reply_markup=remove_kb)
-        await state.clear()
+            viewing_profile_idx = 0
+
+            await state.update_data(
+                matched_profiles=profiles_data,
+                matched_profiles_offset=viewing_profile_idx,
+                viewing_profile_idx=viewing_profile_idx,
+                last_loaded=datetime.now()
+            )
+
+        if viewing_profile_idx >= len(profiles_data):
+            await state.set_state(None)
+            await message.answer("🤷‍♀️ Анкеты для просмотра закончились. Попробуйте позже.", reply_markup=remove_kb)
+            return
+
+        current_profile = profiles_data[viewing_profile_idx]
+
+        await state.update_data(
+            viewing_profile_id=current_profile['id'],
+            viewing_profile_username=current_profile['tg_username'],
+            view_offset=data.get('view_offset', 0) + 1
+        )
+        await state.set_state(ViewingStates.viewing)
+
+        caption = (
+            f"<b>{current_profile['first_name']} {current_profile.get('last_name', '')}, {current_profile['age']}</b>, {current_profile['city']}\n"
+            f"Пол: {'М' if current_profile['gender'] == 'male' else 'Ж'}\n\n"
+            f"{'О себе: ' + current_profile.get('bio') if current_profile.get('bio') != '' else 'Нет описания'}"
+        )
+
+        keyboard = get_rating_keyboard()
+
+        if current_profile.get('photo_file_id') and current_profile.get('photo_file_id') != "None":
+            logging.info(current_profile['photo_file_id'])
+            await message.answer_photo(
+                photo=current_profile['photo_file_id'],
+                caption=caption,
+                parse_mode="HTML",
+                reply_markup=keyboard
+            )
+        else:
+            await message.answer_photo(
+                photo=DEFAULT_PROFILE_PHOTO_ID,
+                caption=caption,
+                parse_mode="HTML",
+                reply_markup=keyboard
+            )
     except Exception as e:
-        await message.answer(f"❌ Непредвиденная ошибка при загрузке анкеты: {e}", reply_markup=remove_kb)
         await state.clear()
+        await message.answer(f"😕 Не удалось загрузить анкеты. Ошибка: {e}",
+                             reply_markup=remove_kb)
+
 
 
 @router.message(Command("view"), StateFilter(None))
 async def view_profiles_command(message: types.Message, state: FSMContext, cfg: FromDishka[Config]):
     async with httpx.AsyncClient() as client:
-        response = await client.get(f"{cfg.profile_service_url}/{message.from_user.id}")
+        response = await client.get(f"{cfg.profile_service_url}/profiles/{message.from_user.id}")
         if response.status_code == 200:
             await message.answer("Начинаем просмотр анкет...")
             await show_next_profile(message, state, cfg)
@@ -384,7 +416,7 @@ async def process_rating_callback(callback: types.CallbackQuery, state: FSMConte
     try:
         async with httpx.AsyncClient() as client:
             rating_response = await client.post(
-                f"{cfg.rating_service_url}/{action}",
+                f"{cfg.rating_service_url}/ratings/{action}",
                 json=payload
             )
 
@@ -407,6 +439,9 @@ async def process_rating_callback(callback: types.CallbackQuery, state: FSMConte
             else:
                 print('Error:', matching_response.json())
             # Показать следующую анкету
+            await state.update_data(
+                viewing_profile_idx=state_data.get('viewing_profile_idx') + 1
+            )
             await show_next_profile(callback.message, state, cfg)
         else:
             await callback.answer(f"Ошибка при отправке оценки: {rating_response.status_code}", show_alert=True)
@@ -426,7 +461,7 @@ async def process_rating_callback(callback: types.CallbackQuery, state: FSMConte
 @router.message(Command("profile"), StateFilter(None))
 async def get_my_profile(message: types.Message, cfg: FromDishka[Config]):
     async with httpx.AsyncClient() as client:
-        response = await client.get(f"{cfg.profile_service_url}/{message.from_user.id}")
+        response = await client.get(f"{cfg.profile_service_url}/profiles/{message.from_user.id}")
 
         if response.status_code == 200:
             profile_data = response.json()

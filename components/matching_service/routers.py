@@ -9,7 +9,7 @@ from geoalchemy2.shape import to_shape
 
 from components.matching_service.config import Config
 from components.matching_service.repositories import LikeMatchRepository
-from components.matching_service.schemas import LikeDislikePayload, UserMatch, UserInfo, UserInfoResponse
+from components.matching_service.schemas import LikeDislikePayload, UserMatch, UserInfoCreate, UserInfoUpdate, UserInfoResponse
 
 
 import aio_pika
@@ -76,7 +76,7 @@ async def create_like(
 
 @router.post("/users/info", tags=["users"])
 async def create_preferences(
-    info: UserInfo,
+    info: UserInfoCreate,
     matching_repo: FromDishka[LikeMatchRepository]
 ) -> UserInfoResponse:
 
@@ -98,9 +98,10 @@ async def create_preferences(
         latitude=point.y
     )
 
-@router.put("/users/info", tags=["users"])
+@router.put("/users/info/{user_id}", tags=["users"])
 async def update_preferences(
-        info: UserInfo,
+        user_id: int,
+        info: UserInfoUpdate,
         matching_repo: FromDishka[LikeMatchRepository],
 ) -> UserInfoResponse:
 
@@ -108,7 +109,7 @@ async def update_preferences(
     if not updated:
         raise HTTPException(status_code=404, detail="Info not found")
 
-    new_info = await matching_repo.update_info(**info.model_dump())
+    new_info = await matching_repo.update_info(user_id=user_id, **info.model_dump())
 
     point = to_shape(new_info.location)
     return UserInfoResponse(
@@ -133,23 +134,23 @@ async def get_next_profile_to_view(
         limit: int = 50
 ):
 
-    profile = await matching_repo.find_matching_users(user_id=viewer_id, offset=offset, limit=limit)
-
-    params = {
-        "profile_ids": profile
-    }
-
-    async with httpx.AsyncClient() as client:
-        response = await client.get(f"{cfg.profile_service_url}/many-profiles", params=params)
-        if response.status_code == 200:
-            print('Zdravo')
-        elif response.status_code == 404:
-            print('Fimoz')
-
-    if not profile:
+    profile_ids = await matching_repo.find_matching_users(user_id=viewer_id, offset=offset, limit=limit)
+    if not profile_ids:
         raise HTTPException(status_code=404, detail="No more profiles to view")
 
-    return profile
+    async with httpx.AsyncClient() as client:
+        response = await client.post(
+            headers={
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+            },
+            url=f"{cfg.profile_service_url}/many-profiles", json=profile_ids
+        )
+        if response.status_code != 200:
+            raise HTTPException(status_code=500, detail=f'Fimoz: {response.json()}')
+
+    profiles = response.json()
+    return profiles
 
     # return {
     #     "user_id": profile.id,

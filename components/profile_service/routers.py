@@ -92,8 +92,8 @@ async def get_profile(profile_id: int, profile_repo: FromDishka[ProfileRepositor
     }
 
 
-@router.get("/many-profiles")
-async def get_profile(
+@router.post("/many-profiles")
+async def get_many_profiles(
         profile_ids: list[int],
         profile_repo: FromDishka[ProfileRepository],
 ):
@@ -114,29 +114,6 @@ async def get_profile(
         }
         for profile in profiles
     ]
-
-
-@router.get("/profiles/{profile_id}")
-async def get_profile(profile_id: int, profile_repo: FromDishka[ProfileRepository]):
-    profile = await profile_repo.get_profile_by_id(profile_id)
-
-    if profile is None:
-        raise HTTPException(
-            status_code=404, detail=f"Profile with ID {profile_id} not found"
-        )
-
-    return {
-        "id": profile.id,
-        "first_name": profile.first_name,
-        "last_name": profile.last_name,
-        "tg_username": profile.tg_username,
-        "bio": profile.bio,
-        "age": profile.age,
-        "gender": profile.gender,
-        "city": profile.city,
-        "photo_path": profile.photo_path,
-        "photo_file_id": profile.photo_file_id,
-    }
 
 
 @router.delete("/profiles/{profile_id}")
