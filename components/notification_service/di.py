@@ -1,8 +1,10 @@
 import os
+
 from aiogram import Bot
 from dishka import Provider, Scope, make_async_container
 
 from components.notification_service.config import Config, load_config
+
 
 def notification_service_provider() -> Provider:
     provider = Provider()
@@ -15,8 +17,6 @@ def notification_service_provider() -> Provider:
     provider.provide(lambda: Bot(token=cfg.bot.bot_token),
                      scope=Scope.APP, provides=Bot)
     return provider
-
-
 
 
 def setup_di():

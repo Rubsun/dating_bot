@@ -1,12 +1,11 @@
-from typing import Any
 import time
 from contextlib import suppress
-
-from dishka import AsyncContainer
-from redis.asyncio import Redis
+from typing import Any
 
 from aiogram import BaseMiddleware
 from aiogram.types import Message
+from dishka import AsyncContainer
+from redis.asyncio import Redis
 
 
 class CheckUsernameMiddleware(BaseMiddleware):
@@ -14,10 +13,10 @@ class CheckUsernameMiddleware(BaseMiddleware):
         self.counter = 0
 
     async def __call__(
-        self,
-        handler,
-        event: Message,
-        data: dict[str, Any]
+            self,
+            handler,
+            event: Message,
+            data: dict[str, Any]
     ) -> Any:
         if not event.from_user.username:
             return await event.answer(text='Для использования бота необходимо выставить username в настройках')
@@ -35,10 +34,10 @@ class RateLimitMiddleware(BaseMiddleware):
         self._cache = {}
 
     async def __call__(
-                self,
-                handler,
-                event: Message,
-                data: dict[str, Any]
+            self,
+            handler,
+            event: Message,
+            data: dict[str, Any]
     ) -> Any:
         redis_client = await self._ioc_container.get(Redis)
 
@@ -58,7 +57,8 @@ class RateLimitMiddleware(BaseMiddleware):
                 if not self._cache.get(redis_key):
                     self._cache[redis_key] = time.time()
 
-                await event.answer(f'Слишком много запросов. Прошу, передохни еще {TIME_WINDOW - (time.time() - self._cache[redis_key])} сек.')
+                await event.answer(
+                    f'Слишком много запросов. Прошу, передохни еще {TIME_WINDOW - (time.time() - self._cache[redis_key])} сек.')
                 return
             with suppress(KeyError):
                 del self._cache[redis_key]

@@ -3,6 +3,7 @@ from typing import Optional
 
 from pydantic import BaseModel, Field
 
+
 class ProfileInfoCreate(BaseModel):
     telegram_id: int = Field(..., example=12345678)
     first_name: str = Field(..., example="John")

@@ -1,5 +1,6 @@
-import toml
 from dataclasses import dataclass
+
+import toml
 
 
 @dataclass
@@ -28,6 +29,7 @@ class RMQConfig:
         self.uri = (
             f"amqp://{self.user}:{self.password}@{self.host}:{self.port}/"
         )
+
 
 @dataclass
 class Config:

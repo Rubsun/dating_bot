@@ -143,7 +143,8 @@ async def rate_like(
 ):
     rater_rating = await rating_repo.get_rating_by_profile_id(payload.rater_user_id)
     rated_rating = await rating_repo.get_rating_by_profile_id(payload.rated_user_id)
-    logger.info(f"Processing 'like' from rater_id {rater_rating.profile_telegram_id} to rated_id {rated_rating.profile_telegram_id}")
+    logger.info(
+        f"Processing 'like' from rater_id {rater_rating.profile_telegram_id} to rated_id {rated_rating.profile_telegram_id}")
     logger.debug(f"Like payload: {payload.model_dump()}")
 
     rating = await service.add_like(rater_rating.rating_score, rated_rating.rating_score)
@@ -159,7 +160,8 @@ async def rate_dislike(
 ):
     rater_rating = await rating_repo.get_rating_by_profile_id(payload.rater_user_id)
     rated_rating = await rating_repo.get_rating_by_profile_id(payload.rated_user_id)
-    logger.info(f"Processing 'dislike' from rater_id {rater_rating.profile_telegram_id} to rated_id {rated_rating.profile_telegram_id}")
+    logger.info(
+        f"Processing 'dislike' from rater_id {rater_rating.profile_telegram_id} to rated_id {rated_rating.profile_telegram_id}")
     logger.debug(f"Dislike payload: {payload.model_dump()}")
 
     rating = await service.add_dislike(rater_rating.rating_score, rated_rating.rating_score)

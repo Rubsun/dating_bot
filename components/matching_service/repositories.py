@@ -1,9 +1,10 @@
+from datetime import datetime
+
 from geoalchemy2 import WKTElement
 from geoalchemy2.functions import ST_Distance, ST_DWithin
+from sqlalchemy import and_, or_, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from sqlalchemy import update, delete, and_, or_, func
-from datetime import datetime
 
 from components.matching_service.models import Like, Match, UserInfo
 
@@ -25,15 +26,15 @@ class LikeMatchRepository:
         return result.scalars().first()
 
     async def create_like(
-        self,
-        rater_user_id: int,
-        rated_user_id: int,
-        like_type: str = 'like'
+            self,
+            rater_user_id: int,
+            rated_user_id: int,
+            like_type: str = 'like'
     ) -> Like:
 
         new_like = Like(
             liker_telegram_id=rater_user_id,
-            liked_telegram_id =rated_user_id,
+            liked_telegram_id=rated_user_id,
             like_type=like_type,
             created_at=datetime.now()
         )
@@ -51,8 +52,8 @@ class LikeMatchRepository:
             select(Match)
             .where(
                 and_(Match.user1_telegram_id == user1_id,
-                    Match.user2_telegram_id == user2_id
-                )
+                     Match.user2_telegram_id == user2_id
+                     )
             )
         )
         return result.scalars().first()
@@ -92,7 +93,6 @@ class LikeMatchRepository:
             )
             existing_match = existing_match_result.scalars().first()
 
-
             if not existing_match:
                 new_match = Match(
                     user1_telegram_id=user1,
@@ -108,12 +108,11 @@ class LikeMatchRepository:
                 print(f"Создана запись о совпадении между {user1} и {user2}.")
                 return True
             else:
-                 print(f"Запись о совпадении между {user1} и {user2} уже существует.")
-                 return False
+                print(f"Запись о совпадении между {user1} и {user2} уже существует.")
+                return False
         else:
             print(f"Взаимный лайк от пользователя {rated_user_id} не найден.")
             return False
-
 
     async def get_info_by_user_id(self, user_id: int) -> UserInfo:
         result = await self.db.execute(

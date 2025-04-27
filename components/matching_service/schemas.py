@@ -1,8 +1,6 @@
-from datetime import datetime
 from typing import TypedDict
-from geoalchemy2.shape import to_shape
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 
 class LikeDislikePayload(BaseModel):
@@ -12,12 +10,14 @@ class LikeDislikePayload(BaseModel):
     rated_username: str
     like_type: str
 
+
 class UserMatch(TypedDict):
     user1_id: int
     user2_id: int
     user1_username: str
     user2_username: str
     # match_date: datetime
+
 
 class UserInfoCreate(BaseModel):
     user_id: int

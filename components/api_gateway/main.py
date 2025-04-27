@@ -5,13 +5,12 @@ from datetime import datetime
 from functools import partial
 from typing import Any
 
-from redis.asyncio import Redis
-
 from aiogram import Bot, Dispatcher, types
 from aiogram.fsm.storage.redis import RedisStorage
 from dishka.integrations.aiogram import (
     setup_dishka,
 )
+from redis.asyncio import Redis
 
 from components.api_gateway.config import Config
 from components.api_gateway.controllers.bot.handlers import router as handler_router
@@ -22,6 +21,7 @@ logging.basicConfig(
     level=logging.INFO,
     format='[%(asctime)s] [%(levelname)s] %(message)s',
 )
+
 
 async def start_polling():
     container = setup_di()
@@ -63,4 +63,3 @@ if __name__ == "__main__":
     logging.info("Запуск бота...")
     logging.basicConfig(level=logging.INFO)
     asyncio.run(start_polling())
-

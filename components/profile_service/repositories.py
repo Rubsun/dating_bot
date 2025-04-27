@@ -46,14 +46,14 @@ class ProfileRepository:
             logger.info(f"Profile created successfully for telegram_id: {telegram_id}. Profile ID: {new_profile.id}")
             return new_profile
         except SQLAlchemyError as e:
-            logger.exception(f"Database error during profile creation for telegram_id: {telegram_id}. Rolling back transaction. Error: {e}")
+            logger.exception(
+                f"Database error during profile creation for telegram_id: {telegram_id}. Rolling back transaction. Error: {e}")
             await self.db.rollback()
             raise
         except Exception as e:
-             logger.exception(f"Unexpected error during profile creation for telegram_id: {telegram_id}. Error: {e}")
-             await self.db.rollback()
-             raise
-
+            logger.exception(f"Unexpected error during profile creation for telegram_id: {telegram_id}. Error: {e}")
+            await self.db.rollback()
+            raise
 
     async def get_profile_by_id(self, profile_id: int) -> Profile:
         """Fetch a Profile by its ID."""
@@ -73,7 +73,6 @@ class ProfileRepository:
         except Exception as e:
             logger.exception(f"Unexpected error while fetching profile ID: {profile_id}. Error: {e}")
             raise
-
 
     async def get_profiles_by_ids(self, ids: list[int]):
         logger.info(f"Attempting to fetch profiles by IDs: {ids}")
@@ -112,11 +111,11 @@ class ProfileRepository:
             logger.info(f"Profile with ID {profile_id} deleted successfully.")
             return True
         except SQLAlchemyError as e:
-            logger.exception(f"Database error during profile deletion for ID: {profile_id}. Rolling back transaction. Error: {e}")
+            logger.exception(
+                f"Database error during profile deletion for ID: {profile_id}. Rolling back transaction. Error: {e}")
             await self.db.rollback()
             raise
         except Exception as e:
             logger.exception(f"Unexpected error during profile deletion for ID: {profile_id}. Error: {e}")
             await self.db.rollback()
             raise
-

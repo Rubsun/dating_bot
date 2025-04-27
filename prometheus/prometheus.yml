@@ -4,15 +4,15 @@ global:
 scrape_configs:
   - job_name: 'profile_service'
     static_configs:
-      - targets: ['profile_service:8000']
+      - targets: [ 'profile_service:8000' ]
 
   - job_name: 'rating_service'
     static_configs:
-      - targets: ['rating_service:8001']
+      - targets: [ 'rating_service:8001' ]
 
   - job_name: 'matching_service'
     static_configs:
-      - targets: ['matching_service:8002']
+      - targets: [ 'matching_service:8002' ]
 
   # - job_name: 'api_gateway'
   #   static_configs:

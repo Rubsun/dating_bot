@@ -1,7 +1,9 @@
-import boto3
 import uuid
+
+import boto3
 from botocore.exceptions import ClientError, EndpointConnectionError
 from loguru import logger
+
 
 class MinIOClient:
     def __init__(self, bucket_name: str, endpoint_url: str, access_key: str, secret_key: str):
@@ -42,16 +44,16 @@ class MinIOClient:
             )
             # Return the object URL
             file_url = f"{self.endpoint_url}/{self.bucket_name}/{unique_file_name}"
-            logger.info(f"File '{unique_file_name}' uploaded successfully to bucket '{self.bucket_name}'. URL: {file_url}")
+            logger.info(
+                f"File '{unique_file_name}' uploaded successfully to bucket '{self.bucket_name}'. URL: {file_url}")
             return file_url
 
         except ClientError as e:
             logger.exception(f"Failed to upload file '{file_name}' to MinIO bucket '{self.bucket_name}'. Error: {e}")
             raise Exception(f"Failed to upload file to MinIO: {e}")
         except Exception as e:
-             logger.exception(f"An unexpected error occurred during file upload for '{file_name}'. Error: {e}")
-             raise
-
+            logger.exception(f"An unexpected error occurred during file upload for '{file_name}'. Error: {e}")
+            raise
 
     def _ensure_bucket_exists(self):
         """
@@ -68,9 +70,9 @@ class MinIOClient:
                 self.s3_client.create_bucket(Bucket=self.bucket_name)
                 logger.info(f"Bucket '{self.bucket_name}' created successfully.")
         except EndpointConnectionError as e:
-            logger.error(f"Unable to connect to the MinIO server at {self.endpoint_url} while ensuring bucket existence. Error: {e}")
+            logger.error(
+                f"Unable to connect to the MinIO server at {self.endpoint_url} while ensuring bucket existence. Error: {e}")
             raise Exception(f"Unable to connect to the MinIO server: {e}")
         except ClientError as e:
             logger.exception(f"Failed to create bucket '{self.bucket_name}'. Error: {e}")
             raise Exception(f"Error ensuring bucket existence: {e}")
-

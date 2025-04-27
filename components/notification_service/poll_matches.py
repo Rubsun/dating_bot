@@ -1,10 +1,11 @@
 import asyncio
+
 import aio_pika
+import httpx
 import msgpack
 from aio_pika import IncomingMessage, ExchangeType
 from aiogram import Bot
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-import httpx
 
 from components.notification_service.config import Config, DEFAULT_PROFILE_PHOTO_ID
 from components.notification_service.di import setup_di
@@ -42,7 +43,8 @@ async def send_match_messages(user1_id, user2_id):
             parse_mode="HTML",
             reply_markup=InlineKeyboardMarkup(
                 inline_keyboard=[
-                    [InlineKeyboardButton(text='Показать юзернейм', callback_data=f'show_username:{user2["tg_username"]}')],
+                    [InlineKeyboardButton(text='Показать юзернейм',
+                                          callback_data=f'show_username:{user2["tg_username"]}')],
                 ]
             )
         )

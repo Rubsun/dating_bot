@@ -2,7 +2,6 @@ import os
 from collections.abc import AsyncGenerator
 
 from dishka import Provider, Scope, make_async_container, provide
-from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import (AsyncEngine, AsyncSession,
                                     async_sessionmaker, create_async_engine)
 

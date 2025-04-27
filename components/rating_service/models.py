@@ -2,7 +2,6 @@ from sqlalchemy import Column, BigInteger, TIMESTAMP, Float
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.sql import func
 
-
 Base = declarative_base()
 
 

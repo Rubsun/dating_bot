@@ -1,6 +1,6 @@
 from typing import Optional, Annotated
 
-from fastapi import UploadFile, Request, Form, HTTPException
+from fastapi import Request, Form, HTTPException
 from pydantic import ValidationError
 
 from components.profile_service.schemas import ProfileFormData

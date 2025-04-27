@@ -1,10 +1,10 @@
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy import Column, Integer, BigInteger, String, DateTime, ForeignKey, TIMESTAMP, Index, Float
-from sqlalchemy.sql import func
-import datetime
 from geoalchemy2 import Geometry
+from sqlalchemy import Column, Integer, BigInteger, String, TIMESTAMP, Index, Float
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.sql import func
 
 Base = declarative_base()
+
 
 class Like(Base):
     __tablename__ = 'likes'

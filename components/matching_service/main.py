@@ -56,4 +56,3 @@ logger.info("Creating FastAPI application...")
 app = create_app(container)
 
 logger.info(f"{SERVICE_NAME} application ready.")
-

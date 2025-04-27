@@ -6,7 +6,7 @@ from fastapi import HTTPException, APIRouter, Depends, UploadFile
 # --- Добавляем импорт logger ---
 from loguru import logger
 
-from components.profile_service.dependencies import validate_profile_form, optional_file_upload
+from components.profile_service.dependencies import validate_profile_form
 from components.profile_service.minio_utils import MinIOClient
 from components.profile_service.repositories import ProfileRepository
 from components.profile_service.schemas import ProfileFormData
@@ -30,7 +30,8 @@ async def create_profile(
         logger.debug(f"Photo details: filename='{photo.filename}', content_type='{photo.content_type}'")
 
         if photo.content_type not in ["image/jpeg", "image/png", "image/gif"]:
-            logger.warning(f"Invalid photo file type '{photo.content_type}' for telegram_id: {profile_data.telegram_id}")
+            logger.warning(
+                f"Invalid photo file type '{photo.content_type}' for telegram_id: {profile_data.telegram_id}")
             raise HTTPException(status_code=400, detail="Invalid file type. Only JPG, PNG, GIF allowed.")
 
         photo_file_name = f"{profile_data.telegram_id}_{profile_data.first_name}_{profile_data.last_name}"
@@ -64,9 +65,11 @@ async def create_profile(
             photo_path=photo_url,
             photo_file_id=profile_data.photo_file_id
         )
-        logger.info(f"Profile created successfully in database for telegram_id: {profile_data.telegram_id}. Profile ID: {new_profile.id}")
+        logger.info(
+            f"Profile created successfully in database for telegram_id: {profile_data.telegram_id}. Profile ID: {new_profile.id}")
     except Exception as e:
-        logger.exception(f"Failed to create profile in database for telegram_id: {profile_data.telegram_id}. Error: {e}")
+        logger.exception(
+            f"Failed to create profile in database for telegram_id: {profile_data.telegram_id}. Error: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to create profile in database: {e}")
 
     logger.info(f"Profile creation process completed for telegram_id: {profile_data.telegram_id}")

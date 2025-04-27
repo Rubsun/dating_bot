@@ -1,7 +1,6 @@
 from sqlalchemy import Column, BigInteger, String, Text, Integer
 from sqlalchemy.ext.declarative import declarative_base
 
-
 Base = declarative_base()
 
 

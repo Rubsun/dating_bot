@@ -11,10 +11,10 @@ from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from dishka.integrations.aiogram import FromDishka
 
 from components.api_gateway.config import Config
-from components.api_gateway.utils import get_coordinates, get_city
 from components.api_gateway.controllers.bot.keyboards import gender_kb, remove_kb, skip_kb, get_my_profile_keyboard, \
     gender_preferences_kb
 from components.api_gateway.controllers.bot.states import ProfileCreationStates
+from components.api_gateway.utils import get_coordinates, get_city
 
 router = Router()
 
@@ -43,7 +43,8 @@ async def start_cmd(message: types.Message, state: FSMContext, cfg: FromDishka[C
                 parse_mode="HTML",
             )
         elif response.status_code == 200:
-            await message.answer("Ваша анкета активна. Можете посмотреть свою анкету командой /profile или начать просмотр других анкет командой /view")
+            await message.answer(
+                "Ваша анкета активна. Можете посмотреть свою анкету командой /profile или начать просмотр других анкет командой /view")
         else:
             await message.answer(f"Произошла ошибка при проверке профиля: {response.status_code}")
 
@@ -53,7 +54,7 @@ async def waiting_for_first_name(message: types.Message, state: FSMContext):
     first_name = message.text
     await state.update_data(first_name=first_name)
     await state.set_state(ProfileCreationStates.waiting_for_last_name)
-    await message.answer(f"Теперь введи свою фамилию")
+    await message.answer("Теперь введи свою фамилию")
 
 
 @router.message(ProfileCreationStates.waiting_for_last_name)
@@ -105,9 +106,8 @@ async def select_gender(callback: types.CallbackQuery, state: FSMContext, bot: B
     ))
 
 
-
 @router.message(ProfileCreationStates.waiting_for_city, F.content_type == 'location')
-async def handle_user_location(message: types.Message,  state: FSMContext, bot: Bot):
+async def handle_user_location(message: types.Message, state: FSMContext, bot: Bot):
     lat = message.location.latitude
     lon = message.location.longitude
 
@@ -165,7 +165,6 @@ async def waiting_for_age_preference(message: types.Message, state: FSMContext):
     )
     await state.set_state(ProfileCreationStates.waiting_for_photo)
     await message.answer("Пришлите фото для вашего профиля (или нажмите 'Пропустить')", reply_markup=skip_kb)
-
 
 
 @router.message(ProfileCreationStates.waiting_for_photo, F.photo | (F.text.lower() == "пропустить"))
@@ -257,8 +256,8 @@ async def waiting_for_photo(message: types.Message, state: FSMContext, cfg: From
             try:
                 if refill:
                     rating_response = await client.put(
-                            cfg.rating_service_url + '/ratings',
-                            json=new_profile_data
+                        cfg.rating_service_url + '/ratings',
+                        json=new_profile_data
                     )
                 else:
                     rating_response = await client.post(
@@ -270,7 +269,7 @@ async def waiting_for_photo(message: types.Message, state: FSMContext, cfg: From
                 preferences_data["rating"] = rating_info["rating_score"]
                 if rating_response.status_code not in (200, 201):
                     logging.warning(
-                            f"Не удалось создать рейтинг: {rating_response.status_code} {rating_response.text}")
+                        f"Не удалось создать рейтинг: {rating_response.status_code} {rating_response.text}")
             except Exception as e:
                 logging.error(f"Ошибка при создании рейтинга: {e}")
 
@@ -308,7 +307,6 @@ async def waiting_for_photo(message: types.Message, state: FSMContext, cfg: From
         await state.clear()
 
 
-
 class ViewingStates(StatesGroup):
     viewing = State()
 
@@ -324,7 +322,6 @@ def get_rating_keyboard() -> InlineKeyboardMarkup:
         ]
     ]
     return InlineKeyboardMarkup(inline_keyboard=buttons)
-
 
 
 async def load_suitable_profiles(message: types.Message, offset: int, cfg: Config):
@@ -344,7 +341,6 @@ async def load_suitable_profiles(message: types.Message, offset: int, cfg: Confi
 
 
 async def show_next_profile(message: types.Message, state: FSMContext, cfg: Config):
-    current_user_id = message.chat.id
     data = await state.get_data()
 
     try:
@@ -353,9 +349,10 @@ async def show_next_profile(message: types.Message, state: FSMContext, cfg: Conf
         offset = data.get('matched_profiles_offset', 0)
         viewing_profile_idx = data.get('viewing_profile_idx')
 
-        print(profiles_data, last_loaded, offset,viewing_profile_idx)
+        print(profiles_data, last_loaded, offset, viewing_profile_idx)
 
-        if (profiles_data is None) or (last_loaded is not None and (datetime.now() - datetime.fromisoformat(last_loaded) > timedelta(minutes=1))):
+        if (profiles_data is None) or (last_loaded is not None and (
+                datetime.now() - datetime.fromisoformat(last_loaded) > timedelta(minutes=1))):
             profiles_data = await load_suitable_profiles(message, offset, cfg)
             if len(profiles_data) == 0:
                 await state.clear()
@@ -414,7 +411,6 @@ async def show_next_profile(message: types.Message, state: FSMContext, cfg: Conf
                              reply_markup=remove_kb)
 
 
-
 @router.message(Command("view"), StateFilter(None))
 async def view_profiles_command(message: types.Message, state: FSMContext, cfg: FromDishka[Config]):
     async with httpx.AsyncClient() as client:
@@ -426,7 +422,6 @@ async def view_profiles_command(message: types.Message, state: FSMContext, cfg: 
             await message.answer("Сначала вам нужно создать свою анкету. Введите /start")
         else:
             await message.answer(f"Не удалось проверить вашу анкету. Ошибка: {response.status_code}")
-
 
 
 @router.callback_query(StateFilter(ViewingStates.viewing), F.data.startswith("rate:"))
@@ -547,6 +542,7 @@ async def fill_profile_again(callback: types.CallbackQuery, state: FSMContext):
         parse_mode="HTML",
     )
 
+
 @router.callback_query(F.data == 'my_profile-delete')
 async def fill_profile_again(callback: types.CallbackQuery, state: FSMContext, cfg: FromDishka[Config]):
     async with httpx.AsyncClient() as client:
@@ -562,10 +558,12 @@ async def fill_profile_again(callback: types.CallbackQuery, state: FSMContext, c
         parse_mode="HTML",
     )
 
+
 @router.callback_query(F.data.startswith("show_username"))
 async def show_username_in_match(callback: types.CallbackQuery):
     username = callback.data.split(':')[1]
     await callback.message.edit_caption(caption=callback.message.caption + f'\n\nНаписать: @{username}')
+
 
 @router.message(F.content_type == 'photo')
 async def get_photo(message: types.Message):

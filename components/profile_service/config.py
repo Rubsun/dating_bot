@@ -1,5 +1,6 @@
-import toml
 from dataclasses import dataclass
+
+import toml
 
 
 @dataclass
@@ -38,5 +39,3 @@ def load_config(config_path: str) -> Config:
         db=DatabaseConfig(**data["db"]),
         s3=S3Config(**data["s3"]),
     )
-
-

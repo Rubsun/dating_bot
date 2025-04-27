@@ -31,6 +31,7 @@ class ProfileRatingCalculator:
 
         return rating + new_rating
 
+
 class RatingService:
     def __init__(self, calculator: ProfileRatingCalculator, k=32, min_rating=100):
         self.calculator = calculator

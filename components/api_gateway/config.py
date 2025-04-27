@@ -18,6 +18,7 @@ class RedisConfig:
             f"redis://{self.host}:{self.port}/"
         )
 
+
 @dataclass
 class Config:
     bot: BotConfig

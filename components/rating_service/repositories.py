@@ -1,9 +1,12 @@
+from datetime import datetime
+
+from loguru import logger
+from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from sqlalchemy import update, delete
-from datetime import datetime
+
 from components.rating_service.models import ProfileRating
-from loguru import logger
+
 
 class ProfileRatingRepository:
     def __init__(self, db: AsyncSession):
@@ -15,14 +18,14 @@ class ProfileRatingRepository:
             rating_score: float
     ) -> ProfileRating:
 
-        logger.info(f"Attempting to create rating entry for telegram_id: {profile_telegram_id} with score: {rating_score}")
+        logger.info(
+            f"Attempting to create rating entry for telegram_id: {profile_telegram_id} with score: {rating_score}")
         new_rating = ProfileRating(
             profile_telegram_id=profile_telegram_id,
             rating_score=rating_score,
             last_calculated_at=datetime.now()
         )
         logger.debug(f"Created ProfileRating object: {new_rating.__dict__}")
-
 
         self.db.add(new_rating)
         await self.db.commit()
@@ -56,10 +59,12 @@ class ProfileRatingRepository:
         rating = await self.get_rating_by_profile_id(profile_id)
 
         if not rating:
-            logger.warning(f"Rating not found for profile_id: {profile_id} during update attempt. Creating new rating instead.")
+            logger.warning(
+                f"Rating not found for profile_id: {profile_id} during update attempt. Creating new rating instead.")
             return await self.create_rating(profile_id, new_rating)
 
-        logger.debug(f"Found existing rating for profile_id {profile_id}. Current score: {rating.rating_score}. Proceeding with update.")
+        logger.debug(
+            f"Found existing rating for profile_id {profile_id}. Current score: {rating.rating_score}. Proceeding with update.")
         rating.rating_score = new_rating
         rating.last_calculated_at = datetime.now()
 

@@ -102,10 +102,13 @@ async def create_like(
                     ),
                     routing_key=routing_key
                 )
-            return {"match":
-                        {"matcher1": match.user1_telegram_id,
-                         "matcher2": match.user2_telegram_id}
+            return {
+                "match":
+                    {
+                        "matcher1": match.user1_telegram_id,
+                        "matcher2": match.user2_telegram_id
                     }
+            }
         return {"status": "half-match"}
     return {"status": "no-match"}
 
@@ -190,4 +193,3 @@ async def get_next_profile_to_view(
 
     profiles = response.json()
     return profiles
-

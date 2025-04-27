@@ -1,14 +1,13 @@
 import asyncio
 
+import aio_pika
+import httpx
 import msgpack
+from aio_pika.exchange import ExchangeType
 from aiogram import Bot
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-import httpx
-
 from celery import Celery
 from celery.schedules import schedule
-import aio_pika
-from aio_pika.exchange import ExchangeType
 
 from components.notification_service.config import Config, DEFAULT_PROFILE_PHOTO_ID
 from components.notification_service.di import setup_di
@@ -34,6 +33,7 @@ def run_async(coro):
 
 
 container = setup_di()
+
 
 @app.task
 def minutely_poll_likes_task():
@@ -102,4 +102,5 @@ def minutely_poll_likes_task():
                         break
 
             print("Finished processing all messages")
+
     return run_async(inner())
