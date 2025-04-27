@@ -6,10 +6,8 @@ from aiogram import Bot
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 import httpx
 
-from components.notification_service.config import Config
+from components.notification_service.config import Config, DEFAULT_PROFILE_PHOTO_ID
 from components.notification_service.di import setup_di
-
-DEFAULT_PROFILE_PHOTO_ID = "AgACAgIAAxkBAAPTaAz10wpbJ5qbrlZN8D9l857jUTUAAizuMRtF92hIMO4aSv2p4J8BAAMCAANtAAM2BA"
 
 
 async def send_match_messages(user1_id, user2_id):
@@ -25,13 +23,13 @@ async def send_match_messages(user1_id, user2_id):
         user1, user2 = user1_resp.json(), user2_resp.json()
 
     text1 = (
-        f"Поздравляем, y вас мэтч!\n\n"
+        f"🎉Поздравляем, y вас мэтч!\n\n"
         f"<b>{user2['first_name']} {user2.get('last_name', '')}, {user2['age']}</b>, {user2['city']}\n"
         f"Пол: {'М' if user2['gender'] == 'male' else 'Ж'}\n\n"
         f"{'О себе: ' + user2.get('bio') if user2.get('bio') != '' else 'Нет описания'}"
     )
     text2 = (
-        f"Поздравляем, y вас мэтч!\n\n"
+        f"🎉Поздравляем, y вас мэтч!\n\n"
         f"<b>{user1['first_name']} {user1.get('last_name', '')}, {user1['age']}</b>, {user1['city']}\n"
         f"Пол: {'М' if user1['gender'] == 'male' else 'Ж'}\n\n"
         f"{'О себе: ' + user1.get('bio') if user1.get('bio') != '' else 'Нет описания'}"

@@ -43,3 +43,6 @@ def load_config(config_path: str) -> Config:
         bot=BotConfig(**data["bot"]),
         celery=CeleryConfig(**data["celery"]),
     )
+
+DEFAULT_PROFILE_PHOTO_ID = "AgACAgIAAxkBAAIreGgOZpoSf9gxadfzNI9LHd6j8wNQAAJf-jEbQ2N4SIh2Do9hieQdAQADAgADeQADNgQ"
+
