@@ -11,14 +11,14 @@ from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from dishka.integrations.aiogram import FromDishka
 
 from components.api_gateway.config import Config
-from components.api_gateway.utils import get_coordinates
+from components.api_gateway.utils import get_coordinates, get_city
 from components.api_gateway.controllers.bot.keyboards import gender_kb, remove_kb, skip_kb, get_my_profile_keyboard, \
     gender_preferences_kb
 from components.api_gateway.controllers.bot.states import ProfileCreationStates
 
 router = Router()
 
-DEFAULT_PROFILE_PHOTO_ID = "AgACAgIAAxkBAAPTaAz10wpbJ5qbrlZN8D9l857jUTUAAizuMRtF92hIMO4aSv2p4J8BAAMCAANtAAM2BA"
+DEFAULT_PROFILE_PHOTO_ID = "AgACAgIAAxkBAAIpy2gOLYwOGoWgBhymvzTjr4MasfX9AALr9DEbtbBwSFJvJSQQAAFu3gEAAwIAA20AAzYE"
 
 
 @router.message(CommandStart())
@@ -96,8 +96,28 @@ async def select_gender(callback: types.CallbackQuery, state: FSMContext):
     gender = callback.data.split("_")[1]
     await state.update_data(gender=gender)
     await state.set_state(ProfileCreationStates.waiting_for_city)
-    await callback.message.edit_text("Введите ваш город")
-    await callback.answer()
+    await callback.message.answer("Введите ваш город", reply_markup=types.ReplyKeyboardMarkup(
+        keyboard=[[types.KeyboardButton(text='📍 Отправить геолокацию', request_location=True, resize_keyboard=True)]]
+    ))
+    await callback.message.delete()
+
+
+
+@router.message(ProfileCreationStates.waiting_for_city, F.content_type == 'location')
+async def handle_user_location(message: types.Message,  state: FSMContext):
+    lat = message.location.latitude
+    lon = message.location.longitude
+
+    city = get_city(latitude=lat, longitude=lon)
+    await state.update_data(
+        latitude=lat,
+        longitude=lon,
+        city=city,
+    )
+    print('Got city:', city)
+
+    await state.set_state(ProfileCreationStates.waiting_for_gender_preference)
+    await message.answer("Кого вы ищете?", reply_markup=gender_preferences_kb)
 
 
 @router.message(ProfileCreationStates.waiting_for_city)
@@ -172,18 +192,6 @@ async def waiting_for_photo(message: types.Message, state: FSMContext, cfg: From
 
     await message.answer("Сохраняем вашу анкету...", reply_markup=remove_kb)
 
-    refill = profile_data.get("refill")
-    if refill:
-        logging.info("refill: %s. Deleting profile..", refill)
-
-        async with httpx.AsyncClient() as client:
-            response = await client.delete(f"{cfg.profile_service_url}/profiles/{profile_data['user_id']}")
-            logging.info("Deletion status: %d; data: %s", response.status_code, response.json())
-
-        await state.update_data(
-            refill=None,
-        )
-
     new_profile_data = {
         "telegram_id": profile_data["user_id"],
         "first_name": profile_data["first_name"],
@@ -206,6 +214,18 @@ async def waiting_for_photo(message: types.Message, state: FSMContext, cfg: From
         "preferred_min_age": profile_data["preferred_min_age"],
         "preferred_max_age": profile_data["preferred_max_age"],
     }
+
+    refill = profile_data.get("refill")
+    if refill:
+        logging.info("refill: %s. Deleting profile..", refill)
+
+        async with httpx.AsyncClient() as client:
+            response = await client.delete(f"{cfg.profile_service_url}/profiles/{profile_data['user_id']}")
+            logging.info("Deletion status: %d; data: %s", response.status_code, response.json())
+
+        await state.update_data(
+            refill=None,
+        )
 
     print('Trying to create profile...')
     try:
@@ -230,10 +250,17 @@ async def waiting_for_photo(message: types.Message, state: FSMContext, cfg: From
                 return
 
             try:
-                rating_response = await client.post(
+                if refill:
+                    rating_response = await client.put(
+                            cfg.rating_service_url + '/ratings',
+                            json=new_profile_data
+                    )
+                else:
+                    rating_response = await client.post(
                         cfg.rating_service_url + '/ratings',
                         json=new_profile_data
-                )
+                    )
+
                 rating_info = rating_response.json()
                 preferences_data["rating"] = rating_info["rating_score"]
                 if rating_response.status_code not in (200, 201):
@@ -243,10 +270,19 @@ async def waiting_for_photo(message: types.Message, state: FSMContext, cfg: From
                 logging.error(f"Ошибка при создании рейтинга: {e}")
 
             try:
-                matching_response = await client.post(
-                    cfg.matching_service_url + "/users/info",
-                    json=preferences_data
-                )
+                if refill:
+                    user_id = preferences_data['user_id']
+                    del preferences_data['user_id']
+                    matching_response = await client.put(
+                        cfg.matching_service_url + f"/users/info/{user_id}",
+                        json=preferences_data
+                    )
+                else:
+                    matching_response = await client.post(
+                        cfg.matching_service_url + "/users/info",
+                        json=preferences_data
+                    )
+
                 if matching_response.status_code not in (200, 201):
                     logging.warning(
                         f"Не удалось создать предпочтения: {matching_response.status_code} {matching_response.text}")

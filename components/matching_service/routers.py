@@ -105,7 +105,7 @@ async def update_preferences(
         matching_repo: FromDishka[LikeMatchRepository],
 ) -> UserInfoResponse:
 
-    updated = await matching_repo.get_info_by_user_id(info.user_id)
+    updated = await matching_repo.get_info_by_user_id(user_id)
     if not updated:
         raise HTTPException(status_code=404, detail="Info not found")
 
