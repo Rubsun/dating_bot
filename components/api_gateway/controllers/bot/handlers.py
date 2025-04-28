@@ -505,6 +505,22 @@ async def view_profiles_command(message: types.Message, state: FSMContext, cfg: 
             await message.answer(f"Не удалось проверить вашу анкету. Ошибка: {response.status_code}")
 
 
+@router.message(Command("top"), StateFilter(None))
+async def view_top_profiles(message: types.Message, state: FSMContext, cfg: FromDishka[Config]):
+    await state.clear()
+    async with httpx.AsyncClient() as client:
+        response = await client.get(f"{cfg.rating_service_url}/top")
+        if response.status_code == 200:
+            print(response.json())
+
+            text = "🔝Топы по рейтингу\n\n"
+            for i, profile in enumerate(response.json()):
+                text += f"{i + 1}. {profile['first_name']} {profile['last_name']} - {round(profile['rating'], 2)}\n"
+            await message.answer(text)
+        else:
+            await message.answer(f"Что-то пошло не так. Ошибка: {response.status_code}")
+
+
 
 @router.callback_query(StateFilter(ViewingStates.viewing), F.data.startswith("rate:"))
 async def process_rating_callback(callback: types.CallbackQuery, state: FSMContext, cfg: FromDishka[Config]):
@@ -719,7 +735,7 @@ async def show_username_in_match(callback: types.CallbackQuery, cfg: FromDishka[
 
     if callback.message.caption:
         await callback.message.ed
-        it_caption(caption=callback.message.caption + f'\n\nНаписать: @{username}')
+        await callback.message.edit_caption(caption=callback.message.caption + f'\n\nНаписать: @{username}')
         return
     await callback.message.edit_text(text=callback.message.text + f'\n\nНаписать: @{username}')
 

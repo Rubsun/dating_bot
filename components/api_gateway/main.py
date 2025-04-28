@@ -37,6 +37,7 @@ async def start_polling():
             types.BotCommand(command='view', description='Смотреть анкеты'),
             types.BotCommand(command='profile', description='Мой профиль'),
             types.BotCommand(command='referral', description='Реферальная система'),
+            types.BotCommand(command='top', description='Показать топов по рейтингу'),
         ]
     )
 
