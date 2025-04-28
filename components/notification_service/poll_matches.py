@@ -32,11 +32,11 @@ async def send_match_messages(user1_id, user2_id):
             )
             user_profile_photos = user['photo_file_ids']
 
-            if user_profile_photos in ('None', None) or len(user_profile_photos) == 1:
+            if user_profile_photos in ('None', None) or len(user_profile_photos) <= 1:
                 await bot.send_photo(
                     chat_id=user_id,
-                    photo=user['photo_file_ids'] if user_profile_photos in (
-                    'None', None) else DEFAULT_PROFILE_PHOTO_ID,
+                    photo=DEFAULT_PROFILE_PHOTO_ID if (user_profile_photos in (
+                    'None', None) or len(user_profile_photos) == 0) else user['photo_file_ids'][0],
                     caption=text,
                     parse_mode="HTML",
                     reply_markup=InlineKeyboardMarkup(

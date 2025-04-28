@@ -622,8 +622,79 @@ async def fill_profile_again(callback: types.CallbackQuery, state: FSMContext, c
         parse_mode="HTML",
     )
 
+
+@router.callback_query(F.data == 'my_profile-stats')
+async def get_my_profile_stats(callback: types.CallbackQuery, cfg: FromDishka[Config]):
+    async with httpx.AsyncClient() as client:
+        response = await client.post(url=cfg.rating_service_url + f"/stats/info/{callback.from_user.id}")
+        if response.status_code not in (200, 204):
+            logging.error('Something went wrong: %s', response.json())
+            await callback.message.answer('Что-то пошло не так, попробуйте позже')
+            return
+
+    stats_data = response.json()
+
+    text = (
+        "📊Статистика анкеты\n\n"
+        f'Диалогов начато: {stats_data["chats_count"]}\n'
+        f'Лайков получено: {stats_data["likes_received"]}\n'
+        f'Лайков отправлено: {stats_data["likes_given"]}\n'
+        f'Всего мэтчей: {stats_data["matches_count"]}\n'
+        f'Приглашенных друзей: {stats_data["refs_count"]}'
+    )
+
+    if callback.message.caption:
+        return await callback.message.edit_caption(
+            caption=text,
+            parse_mode="HTML",
+            reply_markup=InlineKeyboardMarkup(
+                inline_keyboard=[
+                    [InlineKeyboardButton(text='Назад', callback_data='my_profile-stats-back')]
+                ])
+        )
+    await callback.message.edit_text(
+        text=text,
+        parse_mode="HTML",
+        reply_markup=InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text='Назад', callback_data='my_profile-stats-back')]
+        ])
+    )
+
+
+@router.callback_query(F.data == 'my_profile-stats-back')
+async def back_to_profile(callback: types.CallbackQuery, cfg: FromDishka[Config]):
+    async with httpx.AsyncClient() as client:
+        response = await client.get(f"{cfg.profile_service_url}/profiles/{callback.from_user.id}")
+
+        if response.status_code != 200:
+            await callback.message.answer(f"Что-то пошло не так. Ошибка: {response.status_code}")
+            return
+
+    keyboard = get_my_profile_keyboard()
+    if callback.message.text or callback.message.caption is None:
+        await callback.message.edit_text(
+            text='Меню',
+            reply_markup=keyboard
+        )
+        return
+
+
+    current_profile = response.json()
+    caption = (
+        f"<b>{current_profile['first_name']} {current_profile.get('last_name', '')}, {current_profile['age']}</b>, {current_profile['city']}\n"
+        f"Пол: {'М' if current_profile['gender'] == 'male' else 'Ж'}\n\n"
+        f"{'О себе: ' + current_profile.get('bio') if current_profile.get('bio') != '' else 'Нет описания'}"
+    )
+    await callback.message.edit_caption(
+        caption=caption,
+        parse_mode='HTML',
+        reply_markup=keyboard
+    )
+
+
 @router.callback_query(F.data.startswith("show_username"))
-async def show_username_in_match(callback: types.CallbackQuery, cfg: Config):
+async def show_username_in_match(callback: types.CallbackQuery, cfg: FromDishka[Config]):
     watcher_id = callback.from_user.id
     watched_id = callback.data.split(':')[1]
 
@@ -647,7 +718,8 @@ async def show_username_in_match(callback: types.CallbackQuery, cfg: Config):
     username = watcher_user_profile['tg_username']
 
     if callback.message.caption:
-        await callback.message.edit_caption(caption=callback.message.caption + f'\n\nНаписать: @{username}')
+        await callback.message.ed
+        it_caption(caption=callback.message.caption + f'\n\nНаписать: @{username}')
         return
     await callback.message.edit_text(text=callback.message.text + f'\n\nНаписать: @{username}')
 
