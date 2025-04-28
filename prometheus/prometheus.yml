@@ -3,21 +3,24 @@ global:
 
 scrape_configs:
   - job_name: 'profile_service'
+    metrics_path: /metrics
     static_configs:
       - targets: [ 'profile_service:8000' ]
 
   - job_name: 'rating_service'
+    metrics_path: /metrics
     static_configs:
       - targets: [ 'rating_service:8001' ]
 
   - job_name: 'matching_service'
+    metrics_path: /metrics
     static_configs:
       - targets: [ 'matching_service:8002' ]
 
-  # - job_name: 'api_gateway'
-  #   static_configs:
-  #     - targets: ['api_gateway:PORT']
-
-  # - job_name: 'notification_service'
-  #   static_configs:
-  #     - targets: ['notification_service:PORT']
+#   - job_name: 'api_gateway'
+#     static_configs:
+#       - targets: ['api_gateway:PORT']
+#
+#   - job_name: 'notification_service'
+#     static_configs:
+#       - targets: ['notification_service:PORT']
