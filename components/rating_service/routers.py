@@ -126,17 +126,37 @@ async def delete_rating(
     return {"message": "Rating deleted successfully"}
 
 
-@router.get("/top", response_model=list[RatingResponse])
+@router.get("/top")
 async def get_top_ratings(
         rating_repo: FromDishka[ProfileRatingRepository],
+        cfg: FromDishka[Config],
         limit: int = 10
 ):
     logger.info(f"Attempting to get top {limit} ratings.")
-    profiles = await rating_repo.get_top_ratings(limit)
-    logger.info(f"Retrieved {len(profiles)} top profiles.")
-    logger.debug(f"Top profile IDs and ratings: {[(p.profile_telegram_id, p.rating_score) for p in profiles]}")
+    profile_ratings = await rating_repo.get_top_ratings(limit)
 
-    return profiles
+    profiles_ids = [profile.profile_telegram_id for profile in profile_ratings]
+    print(profiles_ids)
+    async with httpx.AsyncClient() as client:
+        response = await client.post(f"{cfg.profile_service_url}/many-profiles", json=profiles_ids)
+        if response.status_code != 200:
+            raise HTTPException(status_code=500, detail=f'Fimoz: {response.json()}')
+
+    profiles = response.json()
+    top_profiles = []
+    for profile in profiles:
+        target_rating = 0
+        for rating in profile_ratings:
+            if rating.profile_telegram_id == profile['id']:
+                target_rating = rating.rating_score
+                break
+        top_profiles.append({"first_name": profile["first_name"], "last_name": profile["last_name"], "rating": target_rating})
+
+    top_top_profiles = sorted(top_profiles, key=lambda x: x["rating"], reverse=True)
+    logger.info(f"Retrieved {len(profiles)} top profiles.")
+    logger.debug(f"Top profile IDs and ratings: {[(p.profile_telegram_id, p.rating_score) for p in profile_ratings]}")
+
+    return top_top_profiles
 
 
 @router.post("/ratings/like")
@@ -241,4 +261,5 @@ async def get_stat(
         rating_repo: FromDishka[ProfileRatingRepository]
 ):
     stats = await rating_repo.get_stats_by_profile_id(user_id)
+
     return stats

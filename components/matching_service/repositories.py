@@ -203,6 +203,35 @@ class LikeMatchRepository:
         )
         return match_result.scalars().first()
 
+    async def get_user_match(self, user_id: int) -> list[dict]:
+        matches = await self.db.execute(
+            select(Match).where(
+                or_(
+                    Match.user1_telegram_id == user_id,
+                    Match.user2_telegram_id == user_id
+                )
+            )
+        )
+        matches = matches.scalars().all()
+
+        result = []
+        for match in matches:
+            if match.user1_telegram_id == user_id:
+                partner_data = {
+                    "username": match.user2_username,
+                    "user_id": match.user2_telegram_id,
+                    "matched_at": match.matched_at
+                }
+            else:
+                partner_data = {
+                    "username": match.user1_username,
+                    "user_id": match.user1_telegram_id,
+                    "matched_at": match.matched_at
+                }
+            result.append(partner_data)
+
+        return result
+
     async def find_matching_users(
             self,
             user_id: int,
