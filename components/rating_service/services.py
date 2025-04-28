@@ -84,7 +84,7 @@ class RatingService:
     async def update_rating(self, old_rating, profile_data):
         updating_rating = await self.calculator.update_calculation(old_rating, profile_data)
 
-        return updating_rating
+        return round(updating_rating, 2)
 
     @staticmethod
     async def _expected_score(rating_a, rating_b):
@@ -108,8 +108,8 @@ class RatingService:
         new_rating2 = await self.calculator.update_match(old_rating2, old_rating1)
 
         return {
-            'user1': max(round(new_rating1, 2), self.min_rating),
-            'user2': max(round(new_rating2, 2), self.min_rating)
+            'user1': round(max(new_rating1, self.min_rating), 2),
+            'user2': round(max(new_rating2, self.min_rating), 2)
         }
 
 
@@ -119,7 +119,7 @@ class RatingService:
 
         new_rating2 = await self.calculator.update_chat(old_rating2, old_rating1)
 
-        return max(round(new_rating2, 2), self.min_rating)
+        return round(max(new_rating2, self.min_rating), 2)
 
     # def get_top_users(self, limit=10):
     #     sorted_users = sorted(self.ratings.items(), key=lambda x: -x[1])
@@ -129,4 +129,4 @@ class RatingService:
 
         new_rating = await self.calculator.update_ref(old_rating)
 
-        return max(round(new_rating, 2), self.min_rating)
+        return round(max(new_rating, self.min_rating), 2)
