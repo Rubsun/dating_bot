@@ -734,7 +734,6 @@ async def show_username_in_match(callback: types.CallbackQuery, cfg: FromDishka[
     username = watcher_user_profile['tg_username']
 
     if callback.message.caption:
-        await callback.message.ed
         await callback.message.edit_caption(caption=callback.message.caption + f'\n\nНаписать: @{username}')
         return
     await callback.message.edit_text(text=callback.message.text + f'\n\nНаписать: @{username}')
