@@ -34,3 +34,30 @@ gender_preferences_kb = InlineKeyboardMarkup(inline_keyboard=[
     ],
     [InlineKeyboardButton(text='Все равно', callback_data='gender_pref:any')]
 ])
+
+
+def get_rate_likers_keyboard():
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text="👍 Лайк", callback_data="rate_liker:like"),
+                InlineKeyboardButton(text="👎 Дизлайк", callback_data="rate_liker:dislike"),
+            ],
+            [
+                InlineKeyboardButton(text="❌ Закончить просмотр", callback_data="rate_liker:stop"),
+            ]
+        ]
+    )
+
+
+def get_rating_keyboard() -> InlineKeyboardMarkup:
+    buttons = [
+        [
+            InlineKeyboardButton(text="👍 Лайк", callback_data="rate:like"),
+            InlineKeyboardButton(text="👎 Дизлайк", callback_data="rate:dislike"),
+        ],
+        [
+            InlineKeyboardButton(text="❌ Закончить просмотр", callback_data="rate:stop"),
+        ]
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=buttons)

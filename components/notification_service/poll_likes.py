@@ -1,9 +1,8 @@
 import asyncio
 
 import msgpack
-from aiogram import Bot
+from aiogram import Bot, types
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-import httpx
 
 from celery import Celery
 from celery.schedules import schedule
@@ -65,41 +64,83 @@ def minutely_poll_likes_task():
             # Set QoS to prefetch messages (optional, adjust as needed)
             await channel.set_qos(prefetch_count=1)
 
+
+
             # Iterate over messages
+            liked_likers = {}
             messages_processed = 0
             async for message in queue.iterator():
                 async with message.process():
                     like_dct = msgpack.unpackb(message.body)
-                    liker_id = like_dct["liker_id"]
                     liked_id = like_dct["liked_id"]
 
-                    async with httpx.AsyncClient() as client:
-                        liker_profile_resp = await client.get(f"{cfg.profile_service_url}/profiles/{liker_id}")
-                        liker_data = liker_profile_resp.json()
+                    if liked_likers.get(liked_id) is None:
+                        liked_likers[liked_id] = []
+                    liked_likers[liked_id].append(like_dct["liker_id"])
+                    # async with httpx.AsyncClient() as client:
+                    #     liker_profile_resp = await client.get(f"{cfg.profile_service_url}/profiles/{liker_id}")
+                    #     liker_data = liker_profile_resp.json()
+                    #
+                    # text = (
+                    #     f"❤️Поздравляем, y вас лайк!\n\n"
+                    #     f"<b>{liker_data['first_name']} {liker_data.get('last_name', '')}, {liker_data['age']}</b>, {liker_data['city']}\n"
+                    #     f"Пол: {'М' if liker_data['gender'] == 'male' else 'Ж'}\n\n"
+                    #     f"{'О себе: ' + liker_data.get('bio') if liker_data.get('bio') != '' else 'Нет описания'}"
+                    # )
+                    #
+                    # print(liker_data['photo_file_ids'], type(liker_data['photo_file_ids']))
+                    # await send_like_msg(liker_data, bot, liked_id, text)
 
-                    text = (
-                        f"❤️Поздравляем, y вас лайк!\n\n"
-                        f"<b>{liker_data['first_name']} {liker_data.get('last_name', '')}, {liker_data['age']}</b>, {liker_data['city']}\n"
-                        f"Пол: {'М' if liker_data['gender'] == 'male' else 'Ж'}\n\n"
-                        f"{'О себе: ' + liker_data.get('bio') if liker_data.get('bio') != '' else 'Нет описания'}"
-                    )
-
-                    await bot.send_photo(
-                        chat_id=liked_id,
-                        photo=liker_data['photo_file_id'] if liker_data['photo_file_id'] != 'None' else DEFAULT_PROFILE_PHOTO_ID,
-                        caption=text,
-                        parse_mode="HTML",
-                        reply_markup=InlineKeyboardMarkup(
-                            inline_keyboard=[
-                                [InlineKeyboardButton(text='Показать юзернейм',
-                                                      callback_data=f'show_username:{liker_data["tg_username"]}')],
-                            ]
-                        )
-                    )
                     messages_processed += 1
                     # Stop after processing all initial messages
                     if messages_processed >= message_count:
                         break
 
             print("Finished processing all messages")
+
+        for liked_id in liked_likers:
+            likers = liked_likers[liked_id]
+            await bot.send_message(
+                chat_id=liked_id,
+                text=f'Твоя анкета понравилась {len(likers)} чел.',
+                reply_markup=InlineKeyboardMarkup(
+                    inline_keyboard=[[InlineKeyboardButton(text='Посмотреть', callback_data=f'my_likers-{likers}')]]
+                )
+            )
     return run_async(inner())
+
+
+
+async def send_like_msg(liker_data, bot: Bot, liked_id, text):
+    liker_profile_photos = liker_data['photo_file_ids']
+    if liker_profile_photos in ('None', None) or len(liker_profile_photos) == 1:
+        await bot.send_photo(
+            chat_id=liked_id,
+            photo=liker_data['photo_file_ids'] if liker_profile_photos in ('None', None) else DEFAULT_PROFILE_PHOTO_ID,
+            caption=text,
+            parse_mode="HTML",
+            reply_markup=InlineKeyboardMarkup(
+                inline_keyboard=[
+                    [InlineKeyboardButton(text='Показать юзернейм',
+                                          callback_data=f'show_username:{liker_data["tg_username"]}')],
+                ]
+            )
+        )
+    else:
+        await bot.send_media_group(
+            chat_id=liked_id,
+            media=[
+                types.input_media_photo.InputMediaPhoto(
+                    media=photo_id,
+                    caption=text if (i == len(liker_profile_photos) - 1) else None,
+                    parse_mode="HTML" if (i == len(liker_profile_photos) - 1) else None,
+                )
+                for i, photo_id in enumerate(liker_profile_photos)
+            ],
+        )
+        await bot.send_message(chat_id=liked_id, text='Меню', reply_markup=InlineKeyboardMarkup(
+            inline_keyboard=[
+                [InlineKeyboardButton(text='Показать юзернейм',
+                                      callback_data=f'show_username:{liker_data["tg_username"]}')],
+            ]
+        ))

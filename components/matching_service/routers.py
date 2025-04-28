@@ -1,18 +1,17 @@
+import aio_pika
 import httpx
 import msgpack
 from aio_pika import ExchangeType
-from fastapi import APIRouter, HTTPException
-
 from dishka import FromDishka
 from dishka.integrations.fastapi import DishkaRoute
+from fastapi import APIRouter, HTTPException
 from geoalchemy2.shape import to_shape
+from loguru import logger
 
 from components.matching_service.config import Config
 from components.matching_service.repositories import LikeMatchRepository
 from components.matching_service.schemas import LikeDislikePayload, UserMatch, UserInfoCreate, UserInfoUpdate, \
     UserInfoResponse, UserLike
-
-import aio_pika
 
 router = APIRouter(route_class=DishkaRoute)
 
@@ -23,6 +22,8 @@ async def create_like(
         matching_repo: FromDishka[LikeMatchRepository],
         cfg: FromDishka[Config],
 ):
+    logger.info(
+        f"Received /match/check request: rater={payload.rater_user_id}, rated={payload.rated_user_id}, type={payload.like_type}")
 
     check_like = await matching_repo.get_like_by_users_id(payload.rater_user_id, payload.rated_user_id)
     if check_like:
@@ -40,9 +41,10 @@ async def create_like(
         rated_user_id=payload.rated_user_id,
         rater_user_id=payload.rater_user_id,
         like_type=payload.like_type,
-   )
+    )
 
     if payload.like_type == "like":
+        logger.info(f"Processing 'like' from {payload.rater_user_id} to {payload.rated_user_id}")
 
         connection = await aio_pika.connect_robust(cfg.rabbitmq.uri)
         async with connection:
@@ -71,9 +73,14 @@ async def create_like(
 
         check_match = await matching_repo.get_match_by_users_id(payload.rater_user_id, payload.rated_user_id)
         if check_match:
+            logger.warning(
+                f"Match already exists between {payload.rater_user_id} and {payload.rated_user_id}. Like processed, but no new match created.")
+
             raise HTTPException(status_code=404, detail="Match has already created")
 
-        is_match = await matching_repo.is_match(payload.rater_user_id, payload.rated_user_id, payload.rater_username, payload.rated_username)
+        logger.debug(f"Checking if a new match is formed between {payload.rater_user_id} and {payload.rated_user_id}")
+        is_match = await matching_repo.is_match(payload.rater_user_id, payload.rated_user_id, payload.rater_username,
+                                                payload.rated_username)
         if is_match:
             match = await matching_repo.get_match(payload.rater_user_id, payload.rated_user_id)
             print('-----------------------', match)
@@ -107,20 +114,23 @@ async def create_like(
                     ),
                     routing_key=routing_key
                 )
-            return {"match":
-                        {"matcher1": match.user1_telegram_id,
-                        "matcher2": match.user2_telegram_id}
+            return {
+                "match":
+                    {
+                        "matcher1": match.user1_telegram_id,
+                        "matcher2": match.user2_telegram_id
                     }
+            }
         return {"status": "half-match"}
     return {"status": "no-match"}
 
 
 @router.post("/users/info", tags=["users"])
 async def create_preferences(
-    info: UserInfoCreate,
-    matching_repo: FromDishka[LikeMatchRepository]
+        info: UserInfoCreate,
+        matching_repo: FromDishka[LikeMatchRepository]
 ) -> UserInfoResponse:
-
+    logger.info(f"Received POST /users/info request for user_id: {info.user_id}")
     created = await matching_repo.get_info_by_user_id(info.user_id)
     if created:
         raise HTTPException(status_code=404, detail="Info has already created")
@@ -139,12 +149,15 @@ async def create_preferences(
         latitude=point.y
     )
 
+
 @router.put("/users/info/{user_id}", tags=["users"])
 async def update_preferences(
         user_id: int,
         info: UserInfoUpdate,
         matching_repo: FromDishka[LikeMatchRepository],
 ) -> UserInfoResponse:
+    logger.info(f"Received PUT /users/info/{user_id} request.")
+    logger.debug(f"Update data for user_id {user_id}: {info.model_dump(exclude_unset=True)}")
 
     updated = await matching_repo.get_info_by_user_id(user_id)
     if not updated:
@@ -174,7 +187,7 @@ async def get_next_profile_to_view(
         offset: int = 0,
         limit: int = 50
 ):
-
+    logger.info(f"Received GET /match/profiles/{viewer_id} request with offset={offset}, limit={limit}")
     profile_ids = await matching_repo.find_matching_users(user_id=viewer_id, offset=offset, limit=limit)
     if not profile_ids:
         raise HTTPException(status_code=404, detail="No more profiles to view")

@@ -1,8 +1,9 @@
 import os
+
 from dishka import Provider, Scope, make_async_container, provide
 from redis.asyncio import Redis
-from components.api_gateway.config import Config, load_config
 
+from components.api_gateway.config import Config, load_config
 
 
 def config_provider() -> Provider:

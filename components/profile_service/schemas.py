@@ -1,6 +1,6 @@
-from pydantic import BaseModel, Field
 from typing import Optional
 
+from pydantic import BaseModel, Field
 from pydantic.v1 import validator
 
 
@@ -13,7 +13,7 @@ class ProfileFormData(BaseModel):
     age: int = Field(..., ge=0, le=150, example=30)
     gender: str = Field(..., example="Male", description="Allowed values: Male, Female, Other")
     city: str = Field(..., max_length=100, example="New York")
-    photo_file_id: Optional[str] = Field(None, example="AgACAgUAAxkBAA...")
+    photo_file_ids: Optional[list[str]] = Field(None, example=["AgACAgUAAxkBAA..."])
 
     @validator('gender')
     def validate_gender(cls, v):

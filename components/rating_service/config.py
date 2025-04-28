@@ -1,5 +1,6 @@
-import toml
 from dataclasses import dataclass
+
+import toml
 
 
 @dataclass

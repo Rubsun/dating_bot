@@ -13,7 +13,7 @@ class ProfileRatingCalculator:
         score = 0
 
         # score += profile_data.get('profile_completeness', 0) * cls.WEIGHTS['profile_completeness']
-        score += (1 if profile_data.photo_file_id else 0) * cls.WEIGHTS['photo_quality']
+        score += (1 if profile_data.photo_file_ids else 0) * cls.WEIGHTS['photo_quality']
         score += (1 if profile_data.bio else 0) * cls.WEIGHTS['description_quality']
         score *= (1 if profile_data.gender == 'male' else 0.9)
 
@@ -30,6 +30,7 @@ class ProfileRatingCalculator:
         new_rating += (1 if profile_data['bio'] else 0) * cls.WEIGHTS['description_quality'] * rating
 
         return rating + new_rating
+
 
 class RatingService:
     def __init__(self, calculator: ProfileRatingCalculator, k=32, min_rating=100):
