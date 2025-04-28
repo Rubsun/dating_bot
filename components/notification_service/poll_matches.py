@@ -42,7 +42,7 @@ async def send_match_messages(user1_id, user2_id):
                     reply_markup=InlineKeyboardMarkup(
                         inline_keyboard=[
                             [InlineKeyboardButton(text='Показать юзернейм',
-                                                  callback_data=f'show_username:{user["tg_username"]}')],
+                                                  callback_data=f'show_username:{user["id"]}')],
                         ]
                     )
                 )

@@ -17,10 +17,10 @@ class ProfileStats(Base):
     __tablename__ = 'profile_stats'
 
     profile_telegram_id = Column(BigInteger, primary_key=True, index=True)
-    likes_given = Column(Integer, nullable=True)
-    dislikes_given = Column(Integer, nullable=True)
-    likes_received = Column(Integer, nullable=True)
-    dislikes_received = Column(Integer, nullable=True)
-    matches_count = Column(Integer, nullable=True)
-    chats_count = Column(Integer, nullable=True)
-    refs_count = Column(Integer, nullable=True)
+    likes_given = Column(Integer, nullable=False, default=0)
+    dislikes_given = Column(Integer, nullable=False, default=0)
+    likes_received = Column(Integer, nullable=False, default=0)
+    dislikes_received = Column(Integer, nullable=False, default=0)
+    matches_count = Column(Integer, nullable=False, default=0)
+    chats_count = Column(Integer, nullable=False, default=0)
+    refs_count = Column(Integer, nullable=False, default=0)

@@ -164,13 +164,15 @@ class ProfileRatingRepository:
         return
 
     async def add_ref(self, user_id):
-
         stats = await self.get_stats_by_profile_id(user_id)
+        if not stats:
+            stats = ProfileStats(refs_count=0)
+            self.db.add(stats)
+
         stats.refs_count = stats.refs_count + 1 if stats.refs_count else 1
 
         await self.db.commit()
         await self.db.refresh(stats)
 
         print('Zdravo')
-
         return

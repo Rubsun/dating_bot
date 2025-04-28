@@ -23,11 +23,11 @@ from aiogram.utils.deep_linking import create_start_link
 
 router = Router()
 
-DEFAULT_PROFILE_PHOTO_ID = "AgACAgIAAxkBAAIpy2gOLYwOGoWgBhymvzTjr4MasfX9AALr9DEbtbBwSFJvJSQQAAFu3gEAAwIAA20AAzYE"
+DEFAULT_PROFILE_PHOTO_ID = "AgACAgIAAxkBAAIvm2gPP8rF5_7hyL1m5ytSeCg5BStxAALO8jEbQ2OASPqQUbOZEJF7AQADAgADbQADNgQ"
 
 
 @router.message(CommandStart(deep_link=True))
-async def handler(message: types.Message, command: CommandObject, state: FSMContext, cfg: FromDishka[Config]):
+async def handler(message: types.Message, command: CommandObject, state: FSMContext, bot: Bot, cfg: FromDishka[Config]):
     user_id = message.from_user.id
     first_name = message.from_user.first_name
 
@@ -50,8 +50,16 @@ async def handler(message: types.Message, command: CommandObject, state: FSMCont
                 "📝 <b>Как тебя зовут</b> (Это имя будут видеть другие пользователи)",
                 parse_mode="HTML",
             )
-            send_somewhere(inviter_id)
+            ref_rating_response = await client.post(
+                cfg.rating_service_url + f'/stats/ref/{inviter_id}'
+            )
+            if ref_rating_response.status_code != 200:
+                logging.warning('Update rating when join by ref link: %s', ref_rating_response.json())
 
+            await bot.send_message(
+                inviter_id,
+                text=f'Пользователь {message.from_user.username} присоединился по твоей реферальной ссылке. 📈Твой рейтинг повышен'
+            )
         elif response.status_code == 200:
             await message.answer(
                 "Ваша анкета активна. Можете посмотреть свою анкету командой /profile или начать просмотр других анкет командой /view")
@@ -615,8 +623,29 @@ async def fill_profile_again(callback: types.CallbackQuery, state: FSMContext, c
     )
 
 @router.callback_query(F.data.startswith("show_username"))
-async def show_username_in_match(callback: types.CallbackQuery):
-    username = callback.data.split(':')[1]
+async def show_username_in_match(callback: types.CallbackQuery, cfg: Config):
+    watcher_id = callback.from_user.id
+    watched_id = callback.data.split(':')[1]
+
+    async with httpx.AsyncClient() as client:
+        watched_user_profile_resp = await client.get(cfg.profile_service_url + f"/profiles/{watched_id}")
+        if watched_user_profile_resp.status_code != 200:
+            logging.warning('Something went wrong during watched user profile retrieving: %s', watched_user_profile_resp.json())
+            return
+
+        dialog_rating_response = await client.post(
+            cfg.rating_service_url + '/stats/chat',
+            json={
+                'watcher_id': watcher_id,
+                'watched_id': watched_id,
+            }
+        )
+        if dialog_rating_response.status_code != 200:
+            logging.warning('Update rating when opening dialog failed: %s', dialog_rating_response.json())
+
+    watcher_user_profile = watched_user_profile_resp.json()
+    username = watcher_user_profile['tg_username']
+
     if callback.message.caption:
         await callback.message.edit_caption(caption=callback.message.caption + f'\n\nНаписать: @{username}')
         return
@@ -655,6 +684,13 @@ async def process_rating_callback(callback: types.CallbackQuery, state: FSMConte
 
     try:
         async with httpx.AsyncClient() as client:
+            liker_profile = await client.get(
+                cfg.profile_service_url + f"/profiles/{current_liker_id}"
+            )
+            liker_profile_data = liker_profile.json()
+            logging.debug('Profile response:', liker_profile_data)
+
+
             rating_response = await client.post(
                 f"{cfg.rating_service_url}/ratings/{action}",
                 json={
@@ -662,6 +698,17 @@ async def process_rating_callback(callback: types.CallbackQuery, state: FSMConte
                     "rated_user_id": current_liker_id
                 }
             )
+            matching_response = await client.post(
+                f"{cfg.matching_service_url}/match/check",
+                json={
+                    "rater_user_id": current_user_id,
+                    "rated_user_id": current_liker_id,
+                    "rater_username": callback.from_user.username,
+                    "rated_username": liker_profile_data['tg_username'],
+                    "like_type": action
+                }
+            )
+            logging.debug('Matching response:', matching_response.json())
 
         if rating_response.status_code == 200:
             await callback.answer(f"Вы поставили {('лайк' if action == 'like' else 'дизлайк')}!")
@@ -708,6 +755,7 @@ async def show_next_liker_profile(message, liked_id, state, bot, cfg):
 
         await state.set_state(ViewingLikerProfiles.viewing)
     except Exception as e:
+        print(e)
         await state.clear()
         await message.answer(f"😕 Не удалось загрузить анкеты. Ошибка: {e}",
                              reply_markup=remove_kb)
@@ -724,10 +772,11 @@ async def send_like_msg(liker_data, bot: Bot, liked_id):
         f"{'О себе: ' + liker_data.get('bio') if liker_data.get('bio') != '' else 'Нет описания'}"
     )
 
-    if liker_profile_photos in ('None', None) or len(liker_profile_photos) == 1:
+    if liker_profile_photos in ('None', None) or len(liker_profile_photos) <= 1:
+        print(text, liker_profile_photos)
         await bot.send_photo(
             chat_id=liked_id,
-            photo=liker_data['photo_file_ids'] if liker_profile_photos in ('None', None) else DEFAULT_PROFILE_PHOTO_ID,
+            photo=DEFAULT_PROFILE_PHOTO_ID if (liker_profile_photos in ('None', None) or len(liker_profile_photos) == 0) else liker_data['photo_file_ids'][0],
             caption=text,
             parse_mode="HTML",
             reply_markup=keyboard
