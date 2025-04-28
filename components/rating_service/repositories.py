@@ -154,13 +154,16 @@ class ProfileRatingRepository:
 
     async def add_chat(self, user_id):
         stats = await self.get_stats_by_profile_id(user_id)
+        if not stats:
+            stats = ProfileStats(chats_count=0)
+            self.db.add(stats)
+
         stats.chats_count = stats.chats_count + 1 if stats.chats_count else 1
 
         await self.db.commit()
         await self.db.refresh(stats)
 
         print('Zdravo')
-
         return
 
     async def add_ref(self, user_id):

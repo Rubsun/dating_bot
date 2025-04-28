@@ -194,10 +194,17 @@ async def stat_info(
 
 @router.post("/stats/match", tags=["stats"])
 async def note_match(
-        payload: MatchingPayload
+        payload: MatchingPayload,
+        rating_repo: FromDishka[ProfileRatingRepository]
 ):
-    await service.fimoz()
-    print(payload.user1_id, payload.user2_id)
+    rating1 = await rating_repo.get_rating_by_profile_id(payload.user1_id)
+    rating2 = await rating_repo.get_rating_by_profile_id(payload.user2_id)
+
+    new_rating = await service.match(rating1, rating2)
+
+    await rating_repo.update_rating(payload.user1_id, new_rating['user1'])
+    await rating_repo.update_rating(payload.user2_id, new_rating['user2'])
+
     return
 
 @router.post("/stats/chat", tags=["stats"])
@@ -205,8 +212,13 @@ async def note_chat(
         payload: ChatPayload,
         rating_repo: FromDishka[ProfileRatingRepository]
 ):
-    await service.fimoz()
+
+    watcher_rating = await rating_repo.get_rating_by_profile_id(payload.watcher_id)
+    watched_rating = await rating_repo.get_rating_by_profile_id(payload.watched_id)
+    new_rating = await service.chat(watcher_rating, watched_rating)
     await rating_repo.add_chat(payload.watched_id)
+
+    await rating_repo.update_rating(payload.watched_id, new_rating)
 
     return
 
@@ -215,8 +227,11 @@ async def note_ref(
     user_id: int,
     rating_repo: FromDishka[ProfileRatingRepository]
 ):
-    await service.fimoz()
+    user = await rating_repo.get_rating_by_profile_id(user_id)
+    new_rating = await service.ref(user)
     await rating_repo.add_ref(user_id)
+
+    await rating_repo.update_rating(user_id, new_rating)
 
     return
 
