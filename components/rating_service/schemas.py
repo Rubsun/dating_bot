@@ -49,3 +49,22 @@ class RatingResponse(RatingBase):
 class LikeDislikePayload(BaseModel):
     rater_user_id: int
     rated_user_id: int
+
+
+class StatsInfo(BaseModel):
+    profile_telegram_id: int
+    likes_givenL: int
+    dislikes_given: int
+    likes_received: int
+    dislikes_received: int
+    matches_count: int
+
+
+class MatchingPayload(BaseModel):
+    user1_id: int
+    user2_id: int
+
+
+class ChatPayload(BaseModel):
+    watcher_id: int
+    watched_id: int

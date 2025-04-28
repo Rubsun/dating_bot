@@ -2,7 +2,7 @@ from geoalchemy2 import WKTElement
 from geoalchemy2.functions import ST_Distance, ST_DWithin
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from sqlalchemy import update, delete, and_, or_, func
+from sqlalchemy import update, delete, and_, or_, func, case, distinct
 from datetime import datetime
 
 from components.matching_service.models import Like, Match, UserInfo
@@ -299,3 +299,64 @@ class LikeMatchRepository:
         await self.db.refresh(info)
 
         return info
+
+    async def get_stats(self, user_id):
+
+        likes_given_query = select(func.count()).where(
+            Like.liker_telegram_id == user_id,
+            Like.like_type == 'like'
+        )
+        likes_given = await self.db.scalar(likes_given_query)
+
+        likes_received_query = select(func.count()).where(
+            Like.liked_telegram_id == user_id,
+            Like.like_type == 'like'
+        )
+        likes_received = await self.db.scalar(likes_received_query)
+
+        dislikes_given_query = select(func.count()).where(
+            Like.liker_telegram_id == user_id,
+            Like.like_type == 'dislike'
+        )
+        dislikes_given = await self.db.scalar(dislikes_given_query)
+
+        dislikes_received_query = select(func.count()).where(
+            Like.liked_telegram_id == user_id,
+            Like.like_type == 'dislike'
+        )
+        dislikes_received = await self.db.scalar(dislikes_received_query)
+
+        matches_query = select(func.count()).where(
+            or_(
+                Match.user1_telegram_id == user_id,
+                Match.user2_telegram_id == user_id
+            )
+        )
+        matches_count = await self.db.scalar(matches_query)
+
+        return {
+            "likes_given": likes_given or 0,
+            "dislikes_given": dislikes_given or 0,
+            "likes_received": likes_received or 0,
+            "dislikes_received": dislikes_received or 0,
+            "matches_count": matches_count or 0
+        }
+
+    async def check_dislike(self, user_id):
+        query = (
+            select(Like)
+            .where(
+                or_(
+                    and_(
+                        Like.liker_telegram_id == user_id,
+                        Like.like_type == 'dislike'
+                    ),
+                    and_(
+                        Like.liked_telegram_id == user_id,
+                        Like.like_type == 'dislike'
+                    )
+                )
+            )
+        )
+        result = await self.db.execute(query)
+        return result.scalar_one_or_none()

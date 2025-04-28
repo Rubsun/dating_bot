@@ -66,6 +66,9 @@ class RatingService:
         delta = self.k * (-expected)
         return round(delta, 2)
 
+    async def fimoz(self):
+        print("FIMOZZZZZZZZZZZZZZZZZ")
+        pass
     # def get_top_users(self, limit=10):
     #     sorted_users = sorted(self.ratings.items(), key=lambda x: -x[1])
     #     return sorted_users[:limit]

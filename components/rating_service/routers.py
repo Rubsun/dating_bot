@@ -7,7 +7,8 @@ from dishka.integrations.fastapi import DishkaRoute
 from components.rating_service.config import Config
 from components.rating_service.repositories import ProfileRatingRepository
 
-from components.rating_service.schemas import RatingCreate, RatingResponse, RatingBase, ProfileInfoCreate, LikeDislikePayload, ProfileInfoUpdate
+from components.rating_service.schemas import RatingCreate, RatingResponse, RatingBase, ProfileInfoCreate, \
+    LikeDislikePayload, ProfileInfoUpdate, StatsInfo, MatchingPayload, ChatPayload
 from components.rating_service.services import RatingService, ProfileRatingCalculator
 
 
@@ -130,3 +131,59 @@ async def rate_dislike(
     rating = await service.add_dislike(rater_rating.rating_score, rated_rating.rating_score)
     await rating_repo.update_rating(payload.rated_user_id, rated_rating.rating_score + rating)
     return
+
+
+@router.post("/stats/info/{profile_id}", tags=["stats"])
+async def stat_info(
+        profile_id: int,
+        rating_repo: FromDishka[ProfileRatingRepository],
+        cfg: FromDishka[Config]
+):
+    async with httpx.AsyncClient() as client:
+        response = await client.get(f"{cfg.matching_service_url}/match/stats/{profile_id}")
+        stats = response.json()
+
+    stats_info = await rating_repo.get_stats_by_profile_id(profile_id)
+    if not stats_info:
+        profile_stats = await rating_repo.create_stats(profile_id, **stats)
+
+    else:
+        profile_stats = await rating_repo.update_stats(profile_id, **stats)
+
+    return profile_stats
+
+@router.post("/stats/match", tags=["stats"])
+async def note_match(
+        payload: MatchingPayload
+):
+    await service.fimoz()
+    print(payload.user1_id, payload.user2_id)
+    return
+
+@router.post("/stats/chat", tags=["stats"])
+async def note_chat(
+        payload: ChatPayload,
+        rating_repo: FromDishka[ProfileRatingRepository]
+):
+    await service.fimoz()
+    await rating_repo.add_chat(payload.watched_id)
+
+    return
+
+@router.post("/stats/ref/{user_id}", tags=["stats"])
+async def note_ref(
+    user_id: int,
+    rating_repo: FromDishka[ProfileRatingRepository]
+):
+    await service.fimoz()
+    await rating_repo.add_ref(user_id)
+
+    return
+
+@router.get("/stats/{user_id}", tags=["stats"])
+async def get_stat(
+        user_id: int,
+        rating_repo: FromDishka[ProfileRatingRepository]
+):
+    stats = await rating_repo.get_stats_by_profile_id(user_id)
+    return stats

@@ -20,6 +20,7 @@ class DatabaseConfig:
 @dataclass
 class Config:
     profile_service_url: str
+    matching_service_url: str
     db: DatabaseConfig
 
 
@@ -28,5 +29,6 @@ def load_config(config_path: str) -> Config:
         data = toml.load(config_file)
     return Config(
         profile_service_url=data["profile_service_url"],
+        matching_service_url=data["matching_service_url"],
         db=DatabaseConfig(**data["db"]),
     )

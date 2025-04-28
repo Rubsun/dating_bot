@@ -34,7 +34,7 @@ async def create_like(
         )
 
         rating = response.json()
-        await matching_repo.update_rating(rating['profile_telegram_id'], rating['rating_score'])
+        # await matching_repo.update_rating(rating['profile_telegram_id'], rating['rating_score'])
 
     like = await matching_repo.create_like(
         rated_user_id=payload.rated_user_id,
@@ -43,6 +43,7 @@ async def create_like(
    )
 
     if payload.like_type == "like":
+
         connection = await aio_pika.connect_robust(cfg.rabbitmq.uri)
         async with connection:
             routing_key = "likes"
@@ -64,6 +65,10 @@ async def create_like(
                 routing_key=routing_key
             )
 
+        check_dislike = await matching_repo.check_dislike(payload.rater_user_id)
+        if check_dislike:
+            return {"status": "no-match"}
+
         check_match = await matching_repo.get_match_by_users_id(payload.rater_user_id, payload.rated_user_id)
         if check_match:
             raise HTTPException(status_code=404, detail="Match has already created")
@@ -72,6 +77,14 @@ async def create_like(
         if is_match:
             match = await matching_repo.get_match(payload.rater_user_id, payload.rated_user_id)
             print('-----------------------', match)
+            async with httpx.AsyncClient() as client:
+                await client.post(
+                    f"{cfg.rating_service_url}/stats/match",
+                    json={
+                        "user1_id": payload.rater_user_id,
+                        "user2_id": payload.rated_user_id
+                    }
+                )
 
             connection = await aio_pika.connect_robust(cfg.rabbitmq.uri)
             async with connection:
@@ -180,17 +193,11 @@ async def get_next_profile_to_view(
     profiles = response.json()
     return profiles
 
-    # return {
-    #     "user_id": profile.id,
-    #     "first_name": profile.first_name,
-    #     "last_name": profile.last_name,
-    #     "tg_username": profile.tg_username,
-    #     "bio": profile.bio,
-    #     "age": profile.age,
-    #     "gender": profile.gender,
-    #     "city": profile.city,
-    #     "photo_path": profile.photo_path,
-    #     "photo_file_id": profile.photo_file_id
-    # }
 
-
+@router.get("/match/stats/{profile_id}")
+async def get_stats(
+        profile_id: int,
+        matching_repo: FromDishka[LikeMatchRepository]
+):
+    stats = await matching_repo.get_stats(profile_id)
+    return stats

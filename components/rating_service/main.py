@@ -24,7 +24,7 @@ def create_app(ioc_container: AsyncContainer):
     setup_dishka(container=ioc_container, app=application)
     application.container = ioc_container
 
-    application.include_router(rating_router, prefix="/api/v1", tags=["ratings"])
+    application.include_router(rating_router, prefix="/api/v1")
 
     @application.get("/health")
     async def health_check():
