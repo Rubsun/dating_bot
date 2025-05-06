@@ -3,7 +3,7 @@ rating_service_url = "http://localhost:8001/api/v1"
 matching_service_url = "http://localhost:8002/api/v1"
 
 [bot]
-bot_token = "7066916393:AAFOAZtmf__xt9Fl-XSM9GpTQvddn98skkI"
+bot_token = "7530248180:AAFTCvZdxlPd-7Z5Se8qFVSRbOCTNAtqonc"
 
 [redis]
 host = "localhost"

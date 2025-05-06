@@ -12,7 +12,7 @@ services:
     ports:
       - "127.0.0.1:8000:8000"
     depends_on:
-      db:
+      profile_service_db:
         condition: service_healthy
     restart: unless-stopped
 
@@ -29,7 +29,7 @@ services:
     ports:
       - "127.0.0.1:8001:8001"
     depends_on:
-      db:
+      rating_service_db:
         condition: service_healthy
     restart: unless-stopped
 
@@ -46,7 +46,7 @@ services:
     ports:
       - "127.0.0.1:8002:8002"
     depends_on:
-      db:
+      matching_service_db:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
@@ -63,6 +63,8 @@ services:
     depends_on:
       rabbitmq:
         condition: service_healthy
+      profile_service:
+        condition: service_started
     restart: unless-stopped
 
   api_gateway:
@@ -89,15 +91,41 @@ services:
   #      db:
   #        condition: service_healthy
 
-  db:
+  matching_service_db:
     image: postgis/postgis:16-3.4-alpine
-    container_name: "dating_bot-db"
+    container_name: "dating_bot-matching_service-db"
     env_file:
       - configs/db.env
-    ports:
-      - "127.0.0.1:5432:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data/
+      - matching_service_db_data:/var/lib/postgresql/data/
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U user -d mydb" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: always
+
+  profile_service_db:
+    image: postgres:16.8-alpine
+    container_name: "dating_bot-profile_service-db"
+    env_file:
+      - configs/db.env
+    volumes:
+      - profile_service_db_data:/var/lib/postgresql/data/
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U user -d mydb" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: always
+
+  rating_service_db:
+    image: postgres:16.8-alpine
+    container_name: "dating_bot-rating_service-db"
+    env_file:
+      - configs/db.env
+    volumes:
+      - rating_service_db_data:/var/lib/postgresql/data/
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U user -d mydb" ]
       interval: 5s
@@ -198,6 +226,8 @@ services:
     restart: unless-stopped
 
 volumes:
-  postgres_data:
+  matching_service_db_data:
+  profile_service_db_data:
+  rating_service_db_data:
   redis_data:
   grafana_data:
