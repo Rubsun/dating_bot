@@ -217,3 +217,17 @@ async def get_match(
 ):
     matches = await matching_repo.get_user_match(user_id)
     return matches
+
+@router.delete("/like/delete/{user_id}")
+async def delete_like(
+        user_id: int,
+        matching_repo: FromDishka[LikeMatchRepository]
+):
+    try:
+        lines = await matching_repo.delete_like(user_id)
+        print(lines)
+        logger.info("Delete like %s", user_id)
+    except Exception as e:
+        logger.exception(e)
+
+    return
