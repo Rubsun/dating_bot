@@ -35,7 +35,6 @@ async def create_like(
         )
 
         rating = response.json()
-        # await matching_repo.update_rating(rating['profile_telegram_id'], rating['rating_score'])
 
     like = await matching_repo.create_like(
         rated_user_id=payload.rated_user_id,
@@ -124,7 +123,6 @@ async def create_like(
         return {"status": "half-match"}
     return {"status": "no-match"}
 
-
 @router.post("/users/info", tags=["users"])
 async def create_preferences(
         info: UserInfoCreate,
@@ -148,7 +146,6 @@ async def create_preferences(
         longitude=point.x,
         latitude=point.y
     )
-
 
 @router.put("/users/info/{user_id}", tags=["users"])
 async def update_preferences(
@@ -178,7 +175,6 @@ async def update_preferences(
         latitude=point.y
     )
 
-
 @router.get("/match/profiles/{viewer_id}", tags=["matching"])
 async def get_next_profile_to_view(
         viewer_id: int,
@@ -206,7 +202,6 @@ async def get_next_profile_to_view(
     profiles = response.json()
     return profiles
 
-
 @router.get("/match/stats/{profile_id}")
 async def get_stats(
         profile_id: int,
@@ -214,7 +209,6 @@ async def get_stats(
 ):
     stats = await matching_repo.get_stats(profile_id)
     return stats
-
 
 @router.get("/match/{user_id}")
 async def get_match(

@@ -1,11 +1,8 @@
-from datetime import datetime
-
 from geoalchemy2 import WKTElement
 from geoalchemy2.functions import ST_Distance, ST_DWithin
-from sqlalchemy import and_, or_, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from sqlalchemy import update, delete, and_, or_, func, case, distinct
+from sqlalchemy import and_, or_, func, case
 from datetime import datetime
 
 from components.matching_service.models import Like, Match, UserInfo
@@ -258,8 +255,22 @@ class LikeMatchRepository:
 
         user_point = WKTElement(f'SRID=4326;POINT({user.longitude} {user.latitude})', extended=True)
 
-        liked_query = select(Like.liked_telegram_id).where(Like.liker_telegram_id == user_id)
-        liked_users = {row[0] for row in (await self.db.execute(liked_query)).all()}
+        matched_query = select(
+            case(
+                (Match.user1_telegram_id == user_id, Match.user2_telegram_id),
+                else_=Match.user1_telegram_id
+            )
+        ).where(
+            or_(
+                Match.user1_telegram_id == user_id,
+                Match.user2_telegram_id == user_id
+            )
+        )
+
+        matched_users_list = (await self.db.execute(matched_query)).all()
+        matched_users = {row[0] for row in matched_users_list}
+
+        matched_users.add(user_id)
 
         found_users = []
         current_radius = initial_radius_km
@@ -278,7 +289,7 @@ class LikeMatchRepository:
                 .where(
                     and_(
                         UserInfo.user_id != user_id,
-                        UserInfo.user_id.not_in(liked_users),
+                        UserInfo.user_id.not_in(matched_users),
                         ST_DWithin(
                             UserInfo.location,
                             user_point,
@@ -331,7 +342,6 @@ class LikeMatchRepository:
         return info
 
     async def get_stats(self, user_id):
-
         likes_given_query = select(func.count()).where(
             Like.liker_telegram_id == user_id,
             Like.like_type == 'like'

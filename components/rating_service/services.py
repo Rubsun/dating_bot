@@ -64,7 +64,6 @@ class ProfileRatingCalculator:
         return old_rating + base_chat_bonus + mutual_bonus
 
 
-
 class RatingService:
     def __init__(self, calculator: ProfileRatingCalculator, k=32, min_rating=100):
         self.calculator = calculator
@@ -77,10 +76,6 @@ class RatingService:
 
         return round(initial_rating, 2)
 
-    # async def get_rating(self, user_id):
-    #     profile = await self.rating_repo.get_rating_by_profile_id(user_id)
-    #     return profile
-    #
     async def update_rating(self, old_rating, profile_data):
         updating_rating = await self.calculator.update_calculation(old_rating, profile_data)
 
@@ -112,7 +107,6 @@ class RatingService:
             'user2': round(max(new_rating2, self.min_rating), 2)
         }
 
-
     async def chat(self, rating1, rating2):
         old_rating1 = rating1.rating_score
         old_rating2 = rating2.rating_score
@@ -121,9 +115,6 @@ class RatingService:
 
         return round(max(new_rating2, self.min_rating), 2)
 
-    # def get_top_users(self, limit=10):
-    #     sorted_users = sorted(self.ratings.items(), key=lambda x: -x[1])
-    #     return sorted_users[:limit]
     async def ref(self, rating):
         old_rating = rating.rating_score
 
