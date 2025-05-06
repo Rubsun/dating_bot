@@ -497,6 +497,9 @@ async def view_profiles_command(message: types.Message, state: FSMContext, cfg: 
     async with httpx.AsyncClient() as client:
         response = await client.get(f"{cfg.profile_service_url}/profiles/{message.from_user.id}")
         if response.status_code == 200:
+            delete_likes_response = await client.delete(f"{cfg.matching_service_url}/like/delete/{message.from_user.id}")
+            print(delete_likes_response.json())
+
             await message.answer("Начинаем просмотр анкет...")
             await show_next_profile(message, state, cfg)
         elif response.status_code == 404:
@@ -629,6 +632,11 @@ async def fill_profile_again(callback: types.CallbackQuery, state: FSMContext, c
             logging.error('Something went wrong: %s', response.json())
             await callback.message.answer('Что-то пошло не так, попробуйте позже')
             return
+
+        delete_rating_response = await client.delete(url=cfg.rating_service_url + f"/ratings/{callback.from_user.id}")
+        if delete_rating_response.status_code not in (200, 204):
+            logging.error('Something went wrong: %s', delete_rating_response.json())
+
 
     await state.clear()
 

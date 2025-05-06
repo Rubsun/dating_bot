@@ -402,9 +402,9 @@ class LikeMatchRepository:
         return result.scalar_one_or_none()
 
     async def delete_like(self, user_id):
-        async with self.db.begin() as conn:
-            stmt = delete(Like).where(Like.liker_telegram_id == user_id)
+        stmt = delete(Like).where(Like.liker_telegram_id == user_id)
 
-            result = await conn.execute(stmt)
+        result = await self.db.execute(stmt)
+        await self.db.commit()
 
-            return result.rowcount
+        return result.rowcount
