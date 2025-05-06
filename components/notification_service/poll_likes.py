@@ -1,6 +1,7 @@
 import asyncio
 
 import msgpack
+import httpx
 from aiogram import Bot, types
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
@@ -75,6 +76,7 @@ def minutely_poll_likes_task():
                     liked_id = like_dct["liked_id"]
 
                     if liked_likers.get(liked_id) is None:
+
                         liked_likers[liked_id] = []
 
                     liked_likers[liked_id].append(like_dct["liker_id"])
@@ -87,11 +89,27 @@ def minutely_poll_likes_task():
 
         for liked_id in liked_likers:
             likers = liked_likers[liked_id]
-            await bot.send_message(
-                chat_id=liked_id,
-                text=f'Твоя анкета понравилась {len(likers)} чел.',
-                reply_markup=InlineKeyboardMarkup(
-                    inline_keyboard=[[InlineKeyboardButton(text='Посмотреть', callback_data=f'my_likers-{likers}')]]
+
+            async with httpx.AsyncClient() as client:
+                existing_liked_user_matches_resp = await client.get(
+                    cfg.matching_service_url + f'/matches/{liked_id}'
                 )
-            )
+                existing_liked_user_matches = existing_liked_user_matches_resp.json()
+
+            print(existing_liked_user_matches)
+
+            # clean up from existing matches
+            for liked_user_match in existing_liked_user_matches:
+                matched_id = liked_user_match['user_id']
+                if matched_id in likers:
+                    likers.remove(matched_id)
+
+            if len(likers) > 0:
+                await bot.send_message(
+                    chat_id=liked_id,
+                    text=f'Твоя анкета понравилась {len(likers)} чел.',
+                    reply_markup=InlineKeyboardMarkup(
+                        inline_keyboard=[[InlineKeyboardButton(text='Посмотреть', callback_data=f'my_likers-{likers}')]]
+                    )
+                )
     return run_async(inner())

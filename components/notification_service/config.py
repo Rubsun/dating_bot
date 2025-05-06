@@ -29,6 +29,7 @@ class CeleryConfig:
 @dataclass
 class Config:
     profile_service_url: str
+    matching_service_url: str
     rabbitmq: RMQConfig
     bot: BotConfig
     celery: CeleryConfig
@@ -39,6 +40,7 @@ def load_config(config_path: str) -> Config:
         data = toml.load(config_file)
     return Config(
         profile_service_url=data["profile_service_url"],
+        matching_service_url=data["matching_service_url"],
         rabbitmq=RMQConfig(**data["rmq"]),
         bot=BotConfig(**data["bot"]),
         celery=CeleryConfig(**data["celery"]),

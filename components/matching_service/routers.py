@@ -210,7 +210,7 @@ async def get_stats(
     stats = await matching_repo.get_stats(profile_id)
     return stats
 
-@router.get("/match/{user_id}")
+@router.get("/matches/{user_id}")
 async def get_match(
         user_id: int,
         matching_repo: FromDishka[LikeMatchRepository]

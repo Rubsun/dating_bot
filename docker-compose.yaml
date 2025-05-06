@@ -59,7 +59,7 @@ services:
     container_name: "dating_bot-notification_service"
     environment:
       NOTIFICATION_SERVICE_CONFIG_PATH: "./components/notification_service/configs/app.docker.toml"
-    command: uv run python -m components.notification_service.poll_matches
+    command: chmod +x components/notification_service/startup.sh && ./components/notification_service/startup.sh
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -99,7 +99,7 @@ services:
     volumes:
       - matching_service_db_data:/var/lib/postgresql/data/
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U user -d mydb" ]
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d postgres" ]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -113,7 +113,7 @@ services:
     volumes:
       - profile_service_db_data:/var/lib/postgresql/data/
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U user -d mydb" ]
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d postgres" ]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -127,7 +127,7 @@ services:
     volumes:
       - rating_service_db_data:/var/lib/postgresql/data/
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U user -d mydb" ]
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d postgres" ]
       interval: 5s
       timeout: 5s
       retries: 5
