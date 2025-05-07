@@ -255,22 +255,22 @@ class LikeMatchRepository:
 
         user_point = WKTElement(f'SRID=4326;POINT({user.longitude} {user.latitude})', extended=True)
 
-        matched_query = select(
-            case(
-                (Match.user1_telegram_id == user_id, Match.user2_telegram_id),
-                else_=Match.user1_telegram_id
-            )
-        ).where(
-            or_(
-                Match.user1_telegram_id == user_id,
-                Match.user2_telegram_id == user_id
-            )
-        )
+        # matched_query = select(
+        #     case(
+        #         (Match.user1_telegram_id == user_id, Match.user2_telegram_id),
+        #         else_=Match.user1_telegram_id
+        #     )
+        # ).where(
+        #     or_(
+        #         Match.user1_telegram_id == user_id,
+        #         Match.user2_telegram_id == user_id
+        #     )
+        # )
 
-        matched_users_list = (await self.db.execute(matched_query)).all()
-        matched_users = {row[0] for row in matched_users_list}
-
-        matched_users.add(user_id)
+        # matched_users_list = (await self.db.execute(matched_query)).all()
+        # matched_users = {row[0] for row in matched_users_list}
+        #
+        # matched_users.add(user_id)
 
         found_users = []
         current_radius = initial_radius_km
@@ -289,7 +289,7 @@ class LikeMatchRepository:
                 .where(
                     and_(
                         UserInfo.user_id != user_id,
-                        UserInfo.user_id.not_in(matched_users),
+                        # UserInfo.user_id.not_in(matched_users),
                         ST_DWithin(
                             UserInfo.location,
                             user_point,

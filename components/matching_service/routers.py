@@ -25,9 +25,9 @@ async def create_like(
     logger.info(
         f"Received /match/check request: rater={payload.rater_user_id}, rated={payload.rated_user_id}, type={payload.like_type}")
 
-    check_like = await matching_repo.get_like_by_users_id(payload.rater_user_id, payload.rated_user_id)
-    if check_like:
-        raise HTTPException(status_code=404, detail="Like has already created")
+    # check_like = await matching_repo.get_like_by_users_id(payload.rater_user_id, payload.rated_user_id)
+    # if check_like:
+    #     raise HTTPException(status_code=404, detail="Like has already created")
 
     async with httpx.AsyncClient() as client:
         response = await client.get(
@@ -211,7 +211,7 @@ async def get_stats(
     return stats
 
 @router.get("/matches/{user_id}")
-async def get_match(
+async def get_matches(
         user_id: int,
         matching_repo: FromDishka[LikeMatchRepository]
 ):

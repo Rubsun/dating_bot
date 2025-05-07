@@ -16,7 +16,7 @@ class Like(Base):
     liker_telegram_id = Column(BigInteger, primary_key=True, nullable=False)
     liked_telegram_id = Column(BigInteger, primary_key=True, nullable=False)
     like_type = Column(String(10), nullable=False)
-    created_at = Column(TIMESTAMP, server_default=func.now())
+    created_at = Column(TIMESTAMP, server_default=func.now(), primary_key=True, nullable=False)
 
 
 class Match(Base):
