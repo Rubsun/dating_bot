@@ -263,3 +263,15 @@ async def get_stat(
     stats = await rating_repo.get_stats_by_profile_id(user_id)
 
     return stats
+
+@router.delete("/stats/{user_id}", tags=["stats"])
+async def delete_stats(
+        user_id: int,
+        rating_repo: FromDishka[ProfileRatingRepository]
+):
+    try:
+        await rating_repo.delete_stats(user_id)
+    except Exception as e:
+        print(e)
+
+    return

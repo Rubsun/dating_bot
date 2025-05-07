@@ -179,3 +179,13 @@ class ProfileRatingRepository:
 
         print('Zdravo')
         return
+
+    async def delete_stats(self, profile_id: int) -> bool:
+        logger.info(f"Attempting to delete stats for profile_id: {profile_id}")
+        result = await self.db.execute(
+            delete(ProfileStats)
+            .where(ProfileStats.profile_telegram_id == profile_id)
+        )
+
+        await self.db.commit()
+        return result.rowcount > 0

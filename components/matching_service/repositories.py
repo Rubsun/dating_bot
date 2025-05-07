@@ -408,3 +408,16 @@ class LikeMatchRepository:
         await self.db.commit()
 
         return result.rowcount
+
+    async def delete_match(self, user_id):
+        stmt = delete(Match).where(
+            or_(
+                Match.user1_telegram_id == user_id,
+                Match.user2_telegram_id == user_id
+            )
+        )
+
+        result = await self.db.execute(stmt)
+        await self.db.commit()
+
+        return result.rowcount

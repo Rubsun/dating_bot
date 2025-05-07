@@ -224,9 +224,11 @@ async def delete_like(
         matching_repo: FromDishka[LikeMatchRepository]
 ):
     try:
-        lines = await matching_repo.delete_like(user_id)
-        print(lines)
-        logger.info("Delete like %s", user_id)
+        like_lines = await matching_repo.delete_like(user_id)
+        print(like_lines)
+        match_lines = await matching_repo.delete_match(user_id)
+        print(match_lines)
+        logger.info("Delete like and match %s", user_id)
     except Exception as e:
         logger.exception(e)
 
